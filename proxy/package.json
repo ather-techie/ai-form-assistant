@@ -1,0 +1,16 @@
+{
+  "name": "ai-form-assistant-proxy",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "mock":  "cross-env MOCK=true node index.js"
+  },
+  "dependencies": {
+    "cors":    "^2.8.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3"
+  }
+}
