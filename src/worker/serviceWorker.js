@@ -27,7 +27,10 @@ let _keepalivePort = null;
 
 // ─── SW Startup ───────────────────────────────────────────────────────────────
 
-self.addEventListener('install',  () => self.skipWaiting());
+self.addEventListener('install', () => {
+  self.skipWaiting();
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+});
 self.addEventListener('activate', e  => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('activate', async () => {

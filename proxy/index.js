@@ -5,14 +5,27 @@
  * GET /health — connection test endpoint.
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors    from 'cors';
 
 const app  = express();
-const PORT = process.env.PORT ?? 3000;
-const MOCK = process.env.MOCK === 'true';
+const PORT             = process.env.PORT             ?? 3000;
+const MOCK             = process.env.MOCK             === 'true';
+const CORS_ORIGIN      = process.env.CORS_ORIGIN      ?? '*';
+const MAX_TOKENS       = parseInt(process.env.CLAUDE_MAX_TOKENS ?? '1024', 10);
+const ANTHROPIC_VER    = process.env.ANTHROPIC_VERSION ?? '2023-06-01';
+const LOCAL_LLM_HOST   = process.env.LOCAL_LLM_HOST   ?? 'localhost';
+const LOCAL_LLM_PORT   = parseInt(process.env.LOCAL_LLM_PORT   ?? '11434', 10);
+const MOCK_INTERVAL_MS = parseInt(process.env.MOCK_INTERVAL_MS ?? '80',    10);
 
-app.use(cors({ origin: '*' }));
+const ENV_KEYS = {
+  claude: process.env.ANTHROPIC_API_KEY,
+  openai: process.env.OPENAI_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
+};
+
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json());
 
 // ─── Health check ─────────────────────────────────────────────────────────────
@@ -24,7 +37,8 @@ app.get('/health', (_req, res) => {
 // ─── POST /v1/complete ────────────────────────────────────────────────────────
 
 app.post('/v1/complete', async (req, res) => {
-  const { provider, model, messages, schema, stream = true, apiKey } = req.body;
+  const { provider, model, messages, schema, stream = true, apiKey: bodyKey } = req.body;
+  const apiKey = bodyKey || ENV_KEYS[provider] || null;
 
   // Validate required fields
   if (!provider || !messages) {
@@ -40,6 +54,10 @@ app.post('/v1/complete', async (req, res) => {
 
   if (MOCK) {
     return serveMock(res, model, provider);
+  }
+
+  if (!apiKey && provider !== 'local') {
+    return sendSseError(res, { status: 401, message: 'No API key provided. Set one in the extension Settings or in proxy/.env.' });
   }
 
   try {
@@ -60,10 +78,10 @@ function buildUpstreamRequest(provider, model, messages, schema, apiKey) {
         headers: {
           'Content-Type':      'application/json',
           'x-api-key':         apiKey,
-          'anthropic-version': '2023-06-01',
+          'anthropic-version': ANTHROPIC_VER,
         },
         body: JSON.stringify({
-          model, stream: true, max_tokens: 1024,
+          model, stream: true, max_tokens: MAX_TOKENS,
           messages,
           ...(schema ? {
             tools: [{ name: 'form_fill', description: 'Fill form fields.', input_schema: { type: 'object', properties: schema, required: Object.keys(schema) } }],
@@ -95,8 +113,8 @@ function buildUpstreamRequest(provider, model, messages, schema, apiKey) {
     }
 
     case 'local': {
-      const host = req?.body?.localLlmHost ?? 'localhost';
-      const port = req?.body?.localLlmPort ?? 11434;
+      const host = req?.body?.localLlmHost ?? LOCAL_LLM_HOST;
+      const port = req?.body?.localLlmPort ?? LOCAL_LLM_PORT;
       return {
         url:     `http://${host}:${port}/v1/chat/completions`,
         headers: { 'Content-Type': 'application/json' },
@@ -207,7 +225,7 @@ function serveMock(res, model, provider) {
       res.write('data: [DONE]\n\n');
       res.end();
     }
-  }, 80);
+  }, MOCK_INTERVAL_MS);
 
   res.on('close', () => clearInterval(iv));
 }
@@ -226,5 +244,6 @@ function safeJson(s) { try { return JSON.parse(s); } catch { return null; } }
 // ─── Start ────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
-  console.log(`AI Form Assistant proxy running on http://localhost:${PORT} ${MOCK ? '[MOCK MODE]' : ''}`);
+  const configured = ['claude', 'openai', 'gemini'].filter(p => ENV_KEYS[p]).join(', ') || 'none';
+  console.log(`AI Form Assistant proxy running on http://localhost:${PORT} ${MOCK ? '[MOCK MODE] ' : ''}— env keys: ${configured}`);
 });
