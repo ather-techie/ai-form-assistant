@@ -13,9 +13,20 @@ import { getProfile }  from '../shared/storage.js';
  * @param {string} templateId  - Profile template to check against
  * @returns {Promise<{ static: Array, smart: Array, preview: Array }>}
  */
+/** camelCase / snake_case / kebab-case → lowercase no separators */
+function normaliseKey(k) {
+  return k.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export async function routeFields(fields, templateId) {
   const profile    = await getProfile(templateId);
   const savedKeys  = Object.keys(profile.fields);
+
+  // Build a normalised lookup so "job_title" matches "jobTitle", etc.
+  const normalisedProfileMap = {};
+  for (const k of savedKeys) {
+    normalisedProfileMap[normaliseKey(k)] = profile.fields[k];
+  }
 
   const staticFields  = [];
   const smartFields   = [];
@@ -23,10 +34,19 @@ export async function routeFields(fields, templateId) {
 
   for (const field of fields) {
     // Profile has an exact match → static fill regardless of confidence
-    if (savedKeys.includes(field.id) || savedKeys.includes(field.classification)) {
+    const exactValue =
+      profile.fields[field.id] ??
+      profile.fields[field.classification];
+
+    // Normalised fallback: "job_title" ↔ "jobTitle", "firstName" ↔ "first_name", etc.
+    const normValue =
+      normalisedProfileMap[normaliseKey(field.id)] ??
+      normalisedProfileMap[normaliseKey(field.classification)];
+
+    if (exactValue !== undefined || normValue !== undefined) {
       staticFields.push({
         ...field,
-        value: profile.fields[field.id] ?? profile.fields[field.classification],
+        value: exactValue ?? normValue,
       });
       continue;
     }

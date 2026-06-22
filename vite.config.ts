@@ -11,18 +11,5 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        // Preserve the content script path so executeScript({ files }) works
-        entryFileNames: (chunk) => {
-          if (chunk.facadeModuleId?.includes('content/content')) {
-            return 'src/content/content.js';
-          }
-          return 'assets/[name]-[hash].js';
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
-      },
-    },
   },
 });

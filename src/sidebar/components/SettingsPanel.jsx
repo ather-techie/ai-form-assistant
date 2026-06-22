@@ -7,6 +7,8 @@ export default function SettingsPanel({ onSessionRestored }) {
   const [status,   setStatus]   = useState('');
   const [testing,  setTesting]  = useState(false);
   const [saved,    setSaved]    = useState(false);
+  const [customModel, setCustomModel] = useState('');
+  const [customPending, setCustomPending] = useState(false);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: MSG.GET_PROFILE, templateId: 'default' })
@@ -14,7 +16,15 @@ export default function SettingsPanel({ onSessionRestored }) {
       .catch(() => {});
     // Load current settings from storage directly
     chrome.storage.local.get('ai_ext:settings').then(r => {
-      if (r['ai_ext:settings']) setSettings(prev => ({ ...prev, ...r['ai_ext:settings'] }));
+      if (r['ai_ext:settings']) {
+        const saved = r['ai_ext:settings'];
+        setSettings(prev => ({ ...prev, ...saved }));
+        // Pre-fill custom input if stored model isn't in the known list
+        if (saved.model && saved.provider) {
+          const known = (MODELS[saved.provider] ?? []).map(m => m.id);
+          if (!known.includes(saved.model)) setCustomModel(saved.model);
+        }
+      }
     });
   }, []);
 
@@ -39,6 +49,28 @@ export default function SettingsPanel({ onSessionRestored }) {
   };
 
   const models = MODELS[settings.provider] ?? [];
+  const isCustom = !!settings.model && !models.some(m => m.id === settings.model);
+  const showCustomInput = isCustom || customPending;
+
+  const handleProviderChange = e => {
+    const p = e.target.value;
+    patch('provider', p);
+    patch('model', MODELS[p]?.[0]?.id ?? '');
+    setCustomModel('');
+    setCustomPending(false);
+  };
+
+  const handleModelChange = e => {
+    if (e.target.value === '__custom__') {
+      setCustomPending(true);
+      setCustomModel('');
+      // leave settings.model unchanged until user types
+    } else {
+      setCustomPending(false);
+      setCustomModel('');
+      patch('model', e.target.value);
+    }
+  };
 
   return (
     <div>
@@ -46,16 +78,27 @@ export default function SettingsPanel({ onSessionRestored }) {
 
       <div className="field-group">
         <label>Provider</label>
-        <select value={settings.provider} onChange={e => { patch('provider', e.target.value); patch('model', MODELS[e.target.value]?.[0]?.id ?? ''); }}>
+        <select value={settings.provider} onChange={handleProviderChange}>
           {Object.values(PROVIDERS).map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
 
       <div className="field-group">
         <label>Model</label>
-        <select value={settings.model} onChange={e => patch('model', e.target.value)}>
+        <select value={isCustom || customPending ? '__custom__' : settings.model} onChange={handleModelChange}>
           {models.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          <option value="__custom__">Custom…</option>
         </select>
+        {showCustomInput && (
+          <input
+            style={{ marginTop: 6 }}
+            value={customModel}
+            onChange={e => { setCustomModel(e.target.value); patch('model', e.target.value); setCustomPending(false); }}
+            placeholder="Enter model ID (e.g. claude-opus-4-8)"
+            autoComplete="off"
+            spellCheck={false}
+          />
+        )}
       </div>
 
       <div className="field-group">

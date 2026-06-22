@@ -2,6 +2,79 @@
 
 A Chrome extension (Manifest V3) that uses AI to detect and fill web forms using your saved profile. Supports Claude, OpenAI, Gemini, and local models via Ollama/LM Studio.
 
+## Architecture
+
+```mermaid
+graph TD
+    User([User]) -->|Fill Form| ChatPanel
+
+    subgraph Sidebar["Sidebar (React Side Panel)"]
+        ChatPanel["ChatPanel\nfill form / chat"]
+        PromptPreview["PromptPreview\nconfirm low-confidence fields"]
+        StreamDisplay["Token stream display"]
+        ChatPanel -->|low-confidence fields| PromptPreview
+        PromptPreview -->|confirmed| ChatPanel
+    end
+
+    subgraph ContentScript["Content Script (content.js)"]
+        Scanner["scanFields()\nDOM query + confidence score"]
+        Injector["injectFields()\nproperty setter + synthetic events"]
+    end
+
+    subgraph ServiceWorker["Service Worker (serviceWorker.js)"]
+        Dispatcher["Message Dispatcher"]
+        Queue["Request Queue\nserial FIFO"]
+        FieldRouter["fieldRouter\nstatic / smart / preview"]
+        CtxBuilder["contextBuilder\nprompt + JSON schema"]
+        ProxyClient["proxyClient\nSSE stream + reconnect"]
+        Keepalive["keepalive\n20s ping"]
+    end
+
+    subgraph Adapters["Adapters (src/adapters/)"]
+        AdapterReg["AdapterRegistry"]
+        ClaudeA["claude.js"]
+        OpenAIA["openai.js"]
+        GeminiA["gemini.js"]
+        LocalA["local.js\nOllama / LM Studio"]
+        AdapterReg --> ClaudeA & OpenAIA & GeminiA & LocalA
+    end
+
+    subgraph Proxy["Proxy (localhost:3000)"]
+        ProxyServer["Express SSE proxy\nPOST /v1/complete"]
+    end
+
+    subgraph AIProviders["AI Providers"]
+        ClaudeAPI["Anthropic API"]
+        OpenAIAPI["OpenAI API"]
+        GeminiAPI["Google Gemini"]
+        OllamaAPI["Ollama / LM Studio"]
+    end
+
+    subgraph Storage["chrome.storage"]
+        Session["session\nqueue · chat history · session key"]
+        LocalStore["local\nsettings · profiles · token log"]
+    end
+
+    ChatPanel -->|SCAN_FIELDS| Scanner
+    Scanner -->|field list| ChatPanel
+    ChatPanel -->|FILL_FORM| Dispatcher
+    Dispatcher --> Queue --> FieldRouter
+    FieldRouter -->|static match| Injector
+    FieldRouter -->|smart fields| CtxBuilder
+    CtxBuilder --> AdapterReg
+    AdapterReg -->|normalised request| ProxyClient
+    ProxyClient -->|POST /v1/complete| ProxyServer
+    ProxyServer -->|forward| ClaudeAPI & OpenAIAPI & GeminiAPI & OllamaAPI
+    ProxyServer -.->|SSE token stream| ProxyClient
+    ProxyClient -.->|port.postMessage tokens| StreamDisplay
+    Dispatcher -->|INJECT_FIELDS| Injector
+    Injector --> DOM["Page DOM\nReact / Vue picks up events"]
+    Keepalive <-->|20s ping/pong| ChatPanel
+    ServiceWorker <-->|read/write| Session & LocalStore
+```
+
+> Solid arrows = direct calls/messages. Dashed arrows = streaming data (SSE tokens).
+
 ## Folder structure
 
 ```

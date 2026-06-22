@@ -17,7 +17,6 @@ import { streamCompletion }                             from './proxyClient.js';
 import { buildContext, buildClassifyContext }           from './contextBuilder.js';
 import { routeFields }                                  from './fieldRouter.js';
 import { normalise as normaliseError }                  from './errorHandler.js';
-import { getAdapter }                                   from '../adapters/index.js';
 import { estimateCost }                                 from '../shared/constants.js';
 
 // ─── State (in-memory only — survives within a SW lifetime) ──────────────────
@@ -129,15 +128,12 @@ async function handleChat({ domain, content, pageTitle }) {
   try {
     await appendChatSession(domain, { role: 'user', content, timestamp: Date.now() });
 
-    const settings  = await getSettings();
-    const apiKey    = await getDecryptedKey(settings);
-    const adapter   = getAdapter(settings.provider);
-    const history   = [{ role: 'user', content }];
-    const { url, headers, body } = adapter.normalise(history, null, { ...settings, apiKey });
+    const settings = await getSettings();
+    const apiKey   = await getDecryptedKey(settings);
 
     const usage = await streamCompletion({
       proxyUrl: settings.proxyUrl,
-      body:     { ...JSON.parse(body), provider: settings.provider, model: settings.model, apiKey },
+      body:     { provider: settings.provider, model: settings.model, messages: [{ role: 'user', content }], apiKey },
       provider: settings.provider,
       port:     _keepalivePort,
     });
@@ -253,15 +249,13 @@ async function getDecryptedKey(settings) {
 }
 
 async function callAI({ fields, domain, pageTitle, templateId, userNote }) {
-  const settings              = await getSettings();
-  const apiKey                = await getDecryptedKey(settings);
-  const adapter               = getAdapter(settings.provider);
-  const { messages, schema }  = await buildContext({ fields, domain, pageTitle, templateId, userNote });
-  const { body }              = adapter.normalise(messages, schema, { ...settings, apiKey });
+  const settings             = await getSettings();
+  const apiKey               = await getDecryptedKey(settings);
+  const { messages, schema } = await buildContext({ fields, domain, pageTitle, templateId, userNote });
 
   const usage = await streamCompletion({
     proxyUrl: settings.proxyUrl,
-    body:     { ...JSON.parse(body), provider: settings.provider, model: settings.model, apiKey },
+    body:     { provider: settings.provider, model: settings.model, messages, schema, apiKey },
     provider: settings.provider,
     port:     _keepalivePort,
   });

@@ -35,7 +35,7 @@ export default function App() {
 
   // Get current tab domain
   useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, tabs => {
       if (tabs[0]?.url) {
         try { setDomain(new URL(tabs[0].url).hostname); } catch { /* ignore */ }
       }

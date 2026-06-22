@@ -49,7 +49,13 @@ export default function ChatPanel({ domain, port, onFieldsScanned, onUsage }) {
 
     try {
       // Inject content script + scan
-      const [tab]    = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab]    = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      const url      = tab?.url ?? '';
+      if (!tab || !url.startsWith('http')) {
+        addMsg('system', 'Navigate to a web page first — this extension cannot run on browser internal pages.');
+        setBusy(false);
+        return;
+      }
       await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['src/content/content.js'] });
       const scan     = await chrome.tabs.sendMessage(tab.id, { type: 'SCAN_FIELDS' });
       const fields   = scan?.fields ?? [];
@@ -61,8 +67,7 @@ export default function ChatPanel({ domain, port, onFieldsScanned, onUsage }) {
         return;
       }
 
-      const [tab2]   = await chrome.tabs.query({ active: true, currentWindow: true });
-      const pageTitle = tab2?.title ?? '';
+      const pageTitle = tab?.title ?? '';
 
       const res = await chrome.runtime.sendMessage({
         type:       MSG.FILL_FORM,
@@ -127,7 +132,7 @@ export default function ChatPanel({ domain, port, onFieldsScanned, onUsage }) {
     setPreview(null);
     setBusy(true);
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       const res   = await chrome.runtime.sendMessage({
         type:       MSG.FILL_FORM,
         domain,

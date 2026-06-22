@@ -46,11 +46,11 @@ export async function buildContext({ fields, domain, pageTitle, templateId, user
 
   const userContent = `Please fill these form fields:\n${fieldList}`;
 
-  // Compose messages: system + truncated history + current request
+  // Compose messages: truncated history + single user turn combining context + request.
+  // Merging into one message avoids consecutive user-role messages, which Claude's API rejects (400).
   const messages = [
-    { role: 'user', content: systemContent },           // treat system as first user turn for universal compat
-    ...history.slice(-10),                              // last 10 turns for context
-    { role: 'user', content: userContent },
+    ...history.slice(-10),
+    { role: 'user', content: `${systemContent}\n\n${userContent}` },
   ];
 
   return { messages, schema };
