@@ -73,9 +73,10 @@ async function handleMessage(msg) {
     case MSG.GET_PROFILE:     return handleGetProfile(msg);
     case MSG.UPDATE_SETTINGS: return handleUpdateSettings(msg);
     case MSG.TEST_CONNECTION: return handleTestConnection(msg);
-    case MSG.GET_TOKEN_USAGE: return { log: await getTokenLog() };
-    case MSG.CLEAR_DATA:      return handleClearData();
-    default:                  return { error: `Unknown message type: ${msg.type}` };
+    case MSG.GET_TOKEN_USAGE:        return { log: await getTokenLog() };
+    case MSG.CLEAR_DATA:             return handleClearData();
+    case MSG.EXTRACT_FROM_DOCUMENT:  return handleExtractFromDocument(msg);
+    default:                         return { error: `Unknown message type: ${msg.type}` };
   }
 }
 
@@ -231,6 +232,34 @@ async function handleClearData() {
   await clearAllData();
   _sessionKey = null;
   return { success: true };
+}
+
+// ─── EXTRACT_FROM_DOCUMENT ────────────────────────────────────────────────────
+
+async function handleExtractFromDocument({ templateId }) {
+  const settings = await getSettings();
+  const apiKey   = await getDecryptedKey(settings);
+  const profile  = await getProfile(templateId);
+
+  const parts = [];
+  if (profile.fields.resume_content) parts.push(profile.fields.resume_content);
+  const customFiles = safeJsonParse(profile.fields.custom_files ?? '[]');
+  for (const f of customFiles) { if (f.content) parts.push(f.content); }
+
+  const content = parts.join('\n\n---\n\n');
+  if (!content.trim()) return { fields: {} };
+
+  const res = await fetch(`${settings.proxyUrl}/v1/extract`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ provider: settings.provider, model: settings.model, apiKey, content }),
+  });
+  if (!res.ok) throw new Error(`Extract endpoint returned ${res.status}`);
+  return res.json();
+}
+
+function safeJsonParse(str) {
+  try { return JSON.parse(str); } catch { return []; }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,61 +1,25 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MSG, DEFAULT_TEMPLATE_ID } from '../../shared/constants.js';
-
-const PERSONAL_FIELDS = [
-  { key: 'firstName',  label: 'First Name',  placeholder: 'John' },
-  { key: 'lastName',   label: 'Last Name',   placeholder: 'Doe' },
-  { key: 'pronouns',   label: 'Pronouns',    placeholder: 'they/them' },
-  { key: 'email',      label: 'Email',       placeholder: 'john@example.com' },
-  { key: 'phone',      label: 'Phone',       placeholder: '+1 555-000-0000' },
-  { key: 'website',    label: 'Website',     placeholder: 'https://yoursite.com' },
-  { key: 'address',    label: 'Address',     placeholder: '123 Main St' },
-  { key: 'city',       label: 'City',        placeholder: 'New York' },
-  { key: 'state',      label: 'State',       placeholder: 'NY' },
-  { key: 'zip',        label: 'ZIP Code',    placeholder: '10001' },
-  { key: 'country',    label: 'Country',     placeholder: 'United States' },
-  { key: 'bio',        label: 'Bio / About', placeholder: 'A short bio about yourself…', multiline: true },
-];
-
-const EMPLOYEE_FIELDS = [
-  { key: 'jobTitle',        label: 'Job Title',           placeholder: 'Software Engineer' },
-  { key: 'company',         label: 'Current Company',     placeholder: 'Acme Corp' },
-  { key: 'yearsExperience', label: 'Years of Experience', placeholder: '5' },
-  { key: 'linkedin',        label: 'LinkedIn URL',        placeholder: 'https://linkedin.com/in/you' },
-  { key: 'portfolio',       label: 'Portfolio / Website', placeholder: 'https://yoursite.com' },
-  { key: 'skills',          label: 'Skills',              placeholder: 'JavaScript, React, Node.js', multiline: true },
-  { key: 'coverLetter',     label: 'Cover Letter',        placeholder: 'I am a passionate...', multiline: true },
-];
-
-const EDUCATION_FIELDS = [
-  { key: 'degree',         label: 'Degree',             placeholder: 'Bachelor of Science' },
-  { key: 'fieldOfStudy',   label: 'Field of Study',     placeholder: 'Computer Science' },
-  { key: 'school',         label: 'School / University', placeholder: 'State University' },
-  { key: 'graduationYear', label: 'Graduation Year',    placeholder: '2020' },
-  { key: 'gpa',            label: 'GPA',                placeholder: '3.8' },
-];
-
-const sectionHeaderStyle = {
-  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '10px 12px', background: 'none', border: 'none', color: 'var(--text)',
-  cursor: 'pointer', fontSize: 13, fontWeight: 600,
-};
+import { PERSONAL_FIELDS, EMPLOYEE_FIELDS, EDUCATION_FIELDS } from './sections/profileFieldConfigs.js';
+import PersonalInfoSection   from './sections/PersonalInfoSection.jsx';
+import EmployeeInfoSection   from './sections/EmployeeInfoSection.jsx';
+import EducationInfoSection  from './sections/EducationInfoSection.jsx';
+import DocumentsSection      from './sections/DocumentsSection.jsx';
+import CustomFieldsSection   from './sections/CustomFieldsSection.jsx';
 
 export default function ProfilePanel() {
   const [templates, setTemplates] = useState([]);
   const [activeId,  setActiveId]  = useState(DEFAULT_TEMPLATE_ID);
   const [values,    setValues]    = useState({});
-  const [open,      setOpen]      = useState({ personal: true, employment: false, education: false, documents: false, custom: false });
+  const [open,      setOpen]      = useState({ personal: false, employment: false, education: false, documents: true, custom: false });
   const [saving,    setSaving]    = useState({});
   const [saved,     setSaved]     = useState({});
   const [showNew,   setShowNew]   = useState(false);
   const [newName,   setNewName]   = useState('');
-  const [resumeFile,   setResumeFile]   = useState(null);
-  const [customFiles,  setCustomFiles]  = useState([]);
-  const [customFieldsMeta, setCustomFieldsMeta] = useState([]);
-  const [showAddField,     setShowAddField]     = useState(false);
-  const [newFieldLabel,    setNewFieldLabel]    = useState('');
-  const resumeInputRef = useRef();
-  const customInputRef = useRef();
+  const [resumeFile,        setResumeFile]        = useState(null);
+  const [customFiles,       setCustomFiles]       = useState([]);
+  const [customFieldsMeta,  setCustomFieldsMeta]  = useState([]);
+  const [showResetConfirm,  setShowResetConfirm]  = useState(false);
 
   const load = async (id = activeId) => {
     const res = await chrome.runtime.sendMessage({ type: MSG.GET_PROFILE, templateId: id });
@@ -90,35 +54,41 @@ export default function ProfilePanel() {
     markSaved(sectionId);
   };
 
+  const resetSection = (fields) => {
+    setValues(v => {
+      const next = { ...v };
+      fields.forEach(f => { next[f.key] = ''; });
+      return next;
+    });
+  };
+
+  const handleGlobalReset = () => {
+    setValues({});
+    setResumeFile(null);
+    setCustomFiles([]);
+    setCustomFieldsMeta([]);
+    setShowResetConfirm(false);
+  };
+
   const saveDocuments = async () => {
     setSaving(s => ({ ...s, documents: true }));
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_filename', value: resumeFile?.name ?? '', domain: '*', templateId: activeId, source: 'manual' });
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_content',  value: resumeFile?.content ?? '', domain: '*', templateId: activeId, source: 'manual' });
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'custom_files',    value: JSON.stringify(customFiles), domain: '*', templateId: activeId, source: 'manual' });
+
+    setSaving(s => ({ ...s, documents: 'extracting' }));
+    try {
+      const result = await chrome.runtime.sendMessage({ type: MSG.EXTRACT_FROM_DOCUMENT, templateId: activeId });
+      const extracted = Object.fromEntries(
+        Object.entries(result?.fields ?? {}).filter(([, v]) => v !== null && v !== '')
+      );
+      if (Object.keys(extracted).length > 0) {
+        setValues(prev => ({ ...prev, ...extracted }));
+        setOpen(o => ({ ...o, personal: true, employment: true, education: true }));
+      }
+    } catch { /* extraction failure is non-fatal — documents are already saved */ }
+
     markSaved('documents');
-  };
-
-  const labelToKey = (label) =>
-    label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-
-  const handleAddCustomField = () => {
-    const label = newFieldLabel.trim();
-    if (!label) return;
-    const key = labelToKey(label);
-    if (customFieldsMeta.some(f => f.key === key)) return;
-    setCustomFieldsMeta(m => [...m, { key, label }]);
-    setValue(key, '');
-    setNewFieldLabel('');
-    setShowAddField(false);
-  };
-
-  const handleDeleteCustomField = async (key) => {
-    setCustomFieldsMeta(m => m.filter(f => f.key !== key));
-    setValues(v => { const n = { ...v }; delete n[key]; return n; });
-    await chrome.runtime.sendMessage({
-      type: MSG.SAVE_FIELD, field: `__delete__${key}`, value: '',
-      domain: '*', templateId: activeId, source: 'manual',
-    });
   };
 
   const saveCustomFields = async () => {
@@ -136,28 +106,13 @@ export default function ProfilePanel() {
     markSaved('custom');
   };
 
-  const readFileAsText = (file, onDone) => {
-    const isText = file.type.startsWith('text/') || /\.(txt|md|csv|json|xml)$/i.test(file.name);
-    if (isText) {
-      const reader = new FileReader();
-      reader.onload = ev => onDone({ name: file.name, content: ev.target.result });
-      reader.readAsText(file);
-    } else {
-      onDone({ name: file.name, content: '' });
-    }
-  };
-
-  const handleResumeUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) readFileAsText(file, setResumeFile);
-    e.target.value = '';
-  };
-
-  const handleCustomUpload = (e) => {
-    Array.from(e.target.files).forEach(file =>
-      readFileAsText(file, f => setCustomFiles(cf => [...cf, f]))
-    );
-    e.target.value = '';
+  const handleDeleteCustomField = async (key) => {
+    setCustomFieldsMeta(m => m.filter(f => f.key !== key));
+    setValues(v => { const n = { ...v }; delete n[key]; return n; });
+    await chrome.runtime.sendMessage({
+      type: MSG.SAVE_FIELD, field: `__delete__${key}`, value: '',
+      domain: '*', templateId: activeId, source: 'manual',
+    });
   };
 
   const handleCreateTemplate = async () => {
@@ -170,35 +125,7 @@ export default function ProfilePanel() {
     load(id);
   };
 
-  const renderSection = (sectionId, title, fields) => {
-    const isOpen   = open[sectionId];
-    const isSaving = saving[sectionId];
-    const isSaved  = saved[sectionId];
-    return (
-      <div key={sectionId} className="card" style={{ padding: 0, marginBottom: 8 }}>
-        <button style={sectionHeaderStyle} onClick={() => setOpen(o => ({ ...o, [sectionId]: !o[sectionId] }))}>
-          <span>{title}</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{isOpen ? '▼' : '▶'}</span>
-        </button>
-        {isOpen && (
-          <div style={{ padding: '0 12px 12px' }}>
-            {fields.map(f => (
-              <div className="field-group" key={f.key}>
-                <label>{f.label}</label>
-                {f.multiline
-                  ? <textarea value={values[f.key] ?? ''} onChange={e => setValue(f.key, e.target.value)} placeholder={f.placeholder} rows={3} />
-                  : <input    value={values[f.key] ?? ''} onChange={e => setValue(f.key, e.target.value)} placeholder={f.placeholder} />
-                }
-              </div>
-            ))}
-            <button className="btn" style={{ width: '100%', marginTop: 4 }} onClick={() => saveSection(sectionId, fields)} disabled={isSaving}>
-              {isSaving ? 'Saving…' : isSaved ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
+  const toggle = (key) => setOpen(o => ({ ...o, [key]: !o[key] }));
 
   return (
     <div>
@@ -214,6 +141,32 @@ export default function ProfilePanel() {
         <button className="btn btn--ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setShowNew(v => !v)}>+ Template</button>
       </div>
 
+      <div style={{ marginBottom: 10, textAlign: 'right' }}>
+        <button
+          className="btn btn--ghost"
+          style={{ fontSize: 12, padding: '4px 10px', color: 'var(--error, #e74c3c)', borderColor: 'var(--error, #e74c3c)' }}
+          onClick={() => setShowResetConfirm(true)}
+        >
+          Reset All
+        </button>
+      </div>
+
+      {showResetConfirm && (
+        <div className="card" style={{ marginBottom: 12, border: '1px solid var(--error, #e74c3c)', padding: '12px 14px' }}>
+          <p style={{ fontSize: 13, marginBottom: 10, color: 'var(--text)' }}>
+            This will clear <strong>all fields, files, and custom entries</strong> for this template. This cannot be undone.
+          </p>
+          <div className="row" style={{ gap: 6 }}>
+            <button className="btn" style={{ flex: 1, background: 'var(--error, #e74c3c)', borderColor: 'var(--error, #e74c3c)' }} onClick={handleGlobalReset}>
+              Yes, Reset Everything
+            </button>
+            <button className="btn btn--ghost" style={{ flex: 1 }} onClick={() => setShowResetConfirm(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       {showNew && (
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="field-group">
@@ -227,128 +180,46 @@ export default function ProfilePanel() {
         </div>
       )}
 
-      {renderSection('personal',   'Personal Info',  PERSONAL_FIELDS)}
-      {renderSection('employment', 'Employee Info',  EMPLOYEE_FIELDS)}
-      {renderSection('education',  'Education Info', EDUCATION_FIELDS)}
+      <DocumentsSection
+        isOpen={open.documents} onToggle={() => toggle('documents')}
+        resumeFile={resumeFile} onResumeChange={setResumeFile}
+        customFiles={customFiles} onCustomFilesChange={setCustomFiles}
+        saving={saving.documents} saved={saved.documents}
+        onSave={saveDocuments} onReset={() => { setResumeFile(null); setCustomFiles([]); }}
+      />
 
-      {/* Documents section */}
-      <div className="card" style={{ padding: 0, marginBottom: 8 }}>
-        <button style={sectionHeaderStyle} onClick={() => setOpen(o => ({ ...o, documents: !o.documents }))}>
-          <span>Documents</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{open.documents ? '▼' : '▶'}</span>
-        </button>
-        {open.documents && (
-          <div style={{ padding: '0 12px 12px' }}>
+      <PersonalInfoSection
+        isOpen={open.personal} onToggle={() => toggle('personal')}
+        values={values} onChange={setValue}
+        saving={saving.personal} saved={saved.personal}
+        onSave={() => saveSection('personal', PERSONAL_FIELDS)}
+        onReset={() => resetSection(PERSONAL_FIELDS)}
+      />
 
-            {/* Resume */}
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>Resume</div>
-              {resumeFile ? (
-                <div className="card" style={{ padding: '8px 12px', marginBottom: 8 }}>
-                  <div className="row row--between">
-                    <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                      📄 {resumeFile.name}
-                    </span>
-                    <button className="btn btn--ghost" style={{ fontSize: 11, padding: '2px 8px', flexShrink: 0 }} onClick={() => setResumeFile(null)}>✕</button>
-                  </div>
-                  {!resumeFile.content && (
-                    <p className="text-muted text-small" style={{ marginTop: 6 }}>Binary file — text content not extracted.</p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted text-small" style={{ marginBottom: 8 }}>No resume uploaded. .txt and .md files will have their content read.</p>
-              )}
-              <input type="file" ref={resumeInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.doc,.docx" onChange={handleResumeUpload} />
-              <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%' }} onClick={() => resumeInputRef.current?.click()}>
-                {resumeFile ? 'Replace Resume' : 'Upload Resume'}
-              </button>
-            </div>
+      <EmployeeInfoSection
+        isOpen={open.employment} onToggle={() => toggle('employment')}
+        values={values} onChange={setValue}
+        saving={saving.employment} saved={saved.employment}
+        onSave={() => saveSection('employment', EMPLOYEE_FIELDS)}
+        onReset={() => resetSection(EMPLOYEE_FIELDS)}
+      />
 
-            {/* Custom files */}
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>Custom Files</div>
-              {customFiles.length === 0 && (
-                <p className="text-muted text-small" style={{ marginBottom: 8 }}>No custom files added.</p>
-              )}
-              {customFiles.map((f, i) => (
-                <div key={i} className="card" style={{ padding: '8px 12px', marginBottom: 6 }}>
-                  <div className="row row--between">
-                    <span style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                      📎 {f.name}
-                    </span>
-                    <button className="btn btn--ghost" style={{ fontSize: 11, padding: '2px 8px', flexShrink: 0 }} onClick={() => setCustomFiles(cf => cf.filter((_, j) => j !== i))}>✕</button>
-                  </div>
-                </div>
-              ))}
-              <input type="file" ref={customInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.doc,.docx,.csv,.json" multiple onChange={handleCustomUpload} />
-              <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%' }} onClick={() => customInputRef.current?.click()}>
-                + Add File
-              </button>
-            </div>
+      <EducationInfoSection
+        isOpen={open.education} onToggle={() => toggle('education')}
+        values={values} onChange={setValue}
+        saving={saving.education} saved={saved.education}
+        onSave={() => saveSection('education', EDUCATION_FIELDS)}
+        onReset={() => resetSection(EDUCATION_FIELDS)}
+      />
 
-            <button className="btn" style={{ width: '100%' }} onClick={saveDocuments} disabled={saving.documents}>
-              {saving.documents ? 'Saving…' : saved.documents ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Custom Fields section */}
-      <div className="card" style={{ padding: 0, marginBottom: 8 }}>
-        <button style={sectionHeaderStyle} onClick={() => setOpen(o => ({ ...o, custom: !o.custom }))}>
-          <span>Custom Fields</span>
-          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{open.custom ? '▼' : '▶'}</span>
-        </button>
-        {open.custom && (
-          <div style={{ padding: '0 12px 12px' }}>
-            <p className="text-muted text-small" style={{ marginBottom: 10 }}>
-              Add fields specific to your work — e.g. judging criteria, mentoring focus, speaking topics.
-            </p>
-
-            {customFieldsMeta.map(({ key, label }) => (
-              <div className="field-group" key={key}>
-                <div className="row row--between" style={{ marginBottom: 4 }}>
-                  <label style={{ marginBottom: 0 }}>{label}</label>
-                  <button className="btn btn--ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={() => handleDeleteCustomField(key)}>✕</button>
-                </div>
-                <textarea value={values[key] ?? ''} onChange={e => setValue(key, e.target.value)} rows={2} placeholder={`Enter ${label.toLowerCase()}…`} />
-              </div>
-            ))}
-
-            {showAddField ? (
-              <div className="card" style={{ padding: '10px 12px', marginBottom: 8 }}>
-                <div className="field-group" style={{ marginBottom: 8 }}>
-                  <label>Field label</label>
-                  <input
-                    value={newFieldLabel}
-                    onChange={e => setNewFieldLabel(e.target.value)}
-                    placeholder="e.g. Judging Criteria"
-                    onKeyDown={e => e.key === 'Enter' && handleAddCustomField()}
-                    autoFocus
-                  />
-                </div>
-                {newFieldLabel.trim() && (
-                  <p className="text-muted text-small" style={{ marginBottom: 8 }}>
-                    Stored as: <code>{labelToKey(newFieldLabel.trim())}</code>
-                  </p>
-                )}
-                <div className="row">
-                  <button className="btn" onClick={handleAddCustomField}>Add</button>
-                  <button className="btn btn--ghost" onClick={() => { setShowAddField(false); setNewFieldLabel(''); }}>Cancel</button>
-                </div>
-              </div>
-            ) : (
-              <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%', marginBottom: 8 }} onClick={() => setShowAddField(true)}>
-                + Add Field
-              </button>
-            )}
-
-            <button className="btn" style={{ width: '100%', marginTop: 4 }} onClick={saveCustomFields} disabled={saving.custom}>
-              {saving.custom ? 'Saving…' : saved.custom ? '✓ Saved' : 'Save'}
-            </button>
-          </div>
-        )}
-      </div>
+      <CustomFieldsSection
+        isOpen={open.custom} onToggle={() => toggle('custom')}
+        customFieldsMeta={customFieldsMeta} values={values} onChange={setValue}
+        onAddField={({ key, label }) => { setCustomFieldsMeta(m => [...m, { key, label }]); setValue(key, ''); }}
+        onDeleteField={handleDeleteCustomField}
+        saving={saving.custom} saved={saved.custom}
+        onSave={saveCustomFields} onReset={() => resetSection(customFieldsMeta)}
+      />
     </div>
   );
 }

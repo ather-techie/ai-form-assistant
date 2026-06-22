@@ -1,17 +1,18 @@
 // ─── Message types ────────────────────────────────────────────────────────────
 
 export const MSG = {
-  PING:            'PING',
-  PONG:            'PONG',
-  FILL_FORM:       'FILL_FORM',
-  CHAT_MESSAGE:    'CHAT_MESSAGE',
-  CLASSIFY_FIELDS: 'CLASSIFY_FIELDS',
-  SAVE_FIELD:      'SAVE_FIELD',
-  GET_PROFILE:     'GET_PROFILE',
-  UPDATE_SETTINGS: 'UPDATE_SETTINGS',
-  TEST_CONNECTION: 'TEST_CONNECTION',
-  GET_TOKEN_USAGE: 'GET_TOKEN_USAGE',
-  CLEAR_DATA:      'CLEAR_DATA',
+  PING:                   'PING',
+  PONG:                   'PONG',
+  FILL_FORM:              'FILL_FORM',
+  CHAT_MESSAGE:           'CHAT_MESSAGE',
+  CLASSIFY_FIELDS:        'CLASSIFY_FIELDS',
+  SAVE_FIELD:             'SAVE_FIELD',
+  GET_PROFILE:            'GET_PROFILE',
+  UPDATE_SETTINGS:        'UPDATE_SETTINGS',
+  TEST_CONNECTION:        'TEST_CONNECTION',
+  GET_TOKEN_USAGE:        'GET_TOKEN_USAGE',
+  CLEAR_DATA:             'CLEAR_DATA',
+  EXTRACT_FROM_DOCUMENT:  'EXTRACT_FROM_DOCUMENT',
 };
 
 // ─── Error codes ──────────────────────────────────────────────────────────────
@@ -115,7 +116,8 @@ export const DEFAULT_SETTINGS = {
 
 // ─── Proxy ────────────────────────────────────────────────────────────────────
 
-export const PROXY_ENDPOINT = '/v1/complete';
+export const PROXY_ENDPOINT   = '/v1/complete';
+export const EXTRACT_ENDPOINT = '/v1/extract';
 
 // ─── SSE sentinels ────────────────────────────────────────────────────────────
 
