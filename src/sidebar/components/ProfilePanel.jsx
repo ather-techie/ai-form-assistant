@@ -4,13 +4,16 @@ import { MSG, DEFAULT_TEMPLATE_ID } from '../../shared/constants.js';
 const PERSONAL_FIELDS = [
   { key: 'firstName',  label: 'First Name',  placeholder: 'John' },
   { key: 'lastName',   label: 'Last Name',   placeholder: 'Doe' },
+  { key: 'pronouns',   label: 'Pronouns',    placeholder: 'they/them' },
   { key: 'email',      label: 'Email',       placeholder: 'john@example.com' },
   { key: 'phone',      label: 'Phone',       placeholder: '+1 555-000-0000' },
+  { key: 'website',    label: 'Website',     placeholder: 'https://yoursite.com' },
   { key: 'address',    label: 'Address',     placeholder: '123 Main St' },
   { key: 'city',       label: 'City',        placeholder: 'New York' },
   { key: 'state',      label: 'State',       placeholder: 'NY' },
   { key: 'zip',        label: 'ZIP Code',    placeholder: '10001' },
   { key: 'country',    label: 'Country',     placeholder: 'United States' },
+  { key: 'bio',        label: 'Bio / About', placeholder: 'A short bio about yourself…', multiline: true },
 ];
 
 const EMPLOYEE_FIELDS = [
@@ -41,13 +44,16 @@ export default function ProfilePanel() {
   const [templates, setTemplates] = useState([]);
   const [activeId,  setActiveId]  = useState(DEFAULT_TEMPLATE_ID);
   const [values,    setValues]    = useState({});
-  const [open,      setOpen]      = useState({ personal: true, employment: false, education: false, documents: false });
+  const [open,      setOpen]      = useState({ personal: true, employment: false, education: false, documents: false, custom: false });
   const [saving,    setSaving]    = useState({});
   const [saved,     setSaved]     = useState({});
   const [showNew,   setShowNew]   = useState(false);
   const [newName,   setNewName]   = useState('');
   const [resumeFile,   setResumeFile]   = useState(null);
   const [customFiles,  setCustomFiles]  = useState([]);
+  const [customFieldsMeta, setCustomFieldsMeta] = useState([]);
+  const [showAddField,     setShowAddField]     = useState(false);
+  const [newFieldLabel,    setNewFieldLabel]    = useState('');
   const resumeInputRef = useRef();
   const customInputRef = useRef();
 
@@ -58,6 +64,7 @@ export default function ProfilePanel() {
       setValues(f);
       setResumeFile(f.resume_filename ? { name: f.resume_filename, content: f.resume_content ?? '' } : null);
       try { setCustomFiles(f.custom_files ? JSON.parse(f.custom_files) : []); } catch { setCustomFiles([]); }
+      try { setCustomFieldsMeta(f._custom_fields_meta ? JSON.parse(f._custom_fields_meta) : []); } catch { setCustomFieldsMeta([]); }
     }
     if (res?.templates) setTemplates(res.templates);
   };
@@ -89,6 +96,44 @@ export default function ProfilePanel() {
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_content',  value: resumeFile?.content ?? '', domain: '*', templateId: activeId, source: 'manual' });
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'custom_files',    value: JSON.stringify(customFiles), domain: '*', templateId: activeId, source: 'manual' });
     markSaved('documents');
+  };
+
+  const labelToKey = (label) =>
+    label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+
+  const handleAddCustomField = () => {
+    const label = newFieldLabel.trim();
+    if (!label) return;
+    const key = labelToKey(label);
+    if (customFieldsMeta.some(f => f.key === key)) return;
+    setCustomFieldsMeta(m => [...m, { key, label }]);
+    setValue(key, '');
+    setNewFieldLabel('');
+    setShowAddField(false);
+  };
+
+  const handleDeleteCustomField = async (key) => {
+    setCustomFieldsMeta(m => m.filter(f => f.key !== key));
+    setValues(v => { const n = { ...v }; delete n[key]; return n; });
+    await chrome.runtime.sendMessage({
+      type: MSG.SAVE_FIELD, field: `__delete__${key}`, value: '',
+      domain: '*', templateId: activeId, source: 'manual',
+    });
+  };
+
+  const saveCustomFields = async () => {
+    setSaving(s => ({ ...s, custom: true }));
+    await chrome.runtime.sendMessage({
+      type: MSG.SAVE_FIELD, field: '_custom_fields_meta', value: JSON.stringify(customFieldsMeta),
+      domain: '*', templateId: activeId, source: 'manual',
+    });
+    for (const { key } of customFieldsMeta) {
+      await chrome.runtime.sendMessage({
+        type: MSG.SAVE_FIELD, field: key, value: values[key] ?? '',
+        domain: '*', templateId: activeId, source: 'manual',
+      });
+    }
+    markSaved('custom');
   };
 
   const readFileAsText = (file, onDone) => {
@@ -243,6 +288,63 @@ export default function ProfilePanel() {
 
             <button className="btn" style={{ width: '100%' }} onClick={saveDocuments} disabled={saving.documents}>
               {saving.documents ? 'Saving…' : saved.documents ? '✓ Saved' : 'Save'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Custom Fields section */}
+      <div className="card" style={{ padding: 0, marginBottom: 8 }}>
+        <button style={sectionHeaderStyle} onClick={() => setOpen(o => ({ ...o, custom: !o.custom }))}>
+          <span>Custom Fields</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{open.custom ? '▼' : '▶'}</span>
+        </button>
+        {open.custom && (
+          <div style={{ padding: '0 12px 12px' }}>
+            <p className="text-muted text-small" style={{ marginBottom: 10 }}>
+              Add fields specific to your work — e.g. judging criteria, mentoring focus, speaking topics.
+            </p>
+
+            {customFieldsMeta.map(({ key, label }) => (
+              <div className="field-group" key={key}>
+                <div className="row row--between" style={{ marginBottom: 4 }}>
+                  <label style={{ marginBottom: 0 }}>{label}</label>
+                  <button className="btn btn--ghost" style={{ fontSize: 11, padding: '2px 6px' }} onClick={() => handleDeleteCustomField(key)}>✕</button>
+                </div>
+                <textarea value={values[key] ?? ''} onChange={e => setValue(key, e.target.value)} rows={2} placeholder={`Enter ${label.toLowerCase()}…`} />
+              </div>
+            ))}
+
+            {showAddField ? (
+              <div className="card" style={{ padding: '10px 12px', marginBottom: 8 }}>
+                <div className="field-group" style={{ marginBottom: 8 }}>
+                  <label>Field label</label>
+                  <input
+                    value={newFieldLabel}
+                    onChange={e => setNewFieldLabel(e.target.value)}
+                    placeholder="e.g. Judging Criteria"
+                    onKeyDown={e => e.key === 'Enter' && handleAddCustomField()}
+                    autoFocus
+                  />
+                </div>
+                {newFieldLabel.trim() && (
+                  <p className="text-muted text-small" style={{ marginBottom: 8 }}>
+                    Stored as: <code>{labelToKey(newFieldLabel.trim())}</code>
+                  </p>
+                )}
+                <div className="row">
+                  <button className="btn" onClick={handleAddCustomField}>Add</button>
+                  <button className="btn btn--ghost" onClick={() => { setShowAddField(false); setNewFieldLabel(''); }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%', marginBottom: 8 }} onClick={() => setShowAddField(true)}>
+                + Add Field
+              </button>
+            )}
+
+            <button className="btn" style={{ width: '100%', marginTop: 4 }} onClick={saveCustomFields} disabled={saving.custom}>
+              {saving.custom ? 'Saving…' : saved.custom ? '✓ Saved' : 'Save'}
             </button>
           </div>
         )}
