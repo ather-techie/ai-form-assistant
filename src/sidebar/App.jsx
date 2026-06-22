@@ -4,11 +4,13 @@ import ProfilePanel from './components/ProfilePanel.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import AuditPanel   from './components/AuditPanel.jsx';
 import CostBadge    from './components/CostBadge.jsx';
+import { useFeatureFlags } from './hooks/useFeatureFlags.js';
 import { MSG, KEEPALIVE_PORT_NAME } from '../shared/constants.js';
 
-const VIEWS = ['Chat', 'Profile', 'Settings', 'Audit'];
+const BASE_VIEWS = ['Chat', 'Profile', 'Settings'];
 
 export default function App() {
+  const flags = useFeatureFlags();
   const [view,         setView]         = useState('Chat');
   const [domain,       setDomain]       = useState('');
   const [fieldCount,   setFieldCount]   = useState(0);
@@ -59,7 +61,7 @@ export default function App() {
       <div className="context-strip">
         <span className="context-strip__domain" title={domain}>{domain || 'No page'}</span>
         {fieldCount > 0 && <span className="context-strip__badge">{fieldCount} fields</span>}
-        {lastUsage && <CostBadge usage={lastUsage} />}
+        {lastUsage && flags.costDisplay && <CostBadge usage={lastUsage} />}
         {!sessionValid && (
           <span className="badge-warn" title="Session expired — re-enter API key in Settings">⚠ Key</span>
         )}
@@ -67,7 +69,7 @@ export default function App() {
 
       {/* View tabs */}
       <div className="view-tabs">
-        {VIEWS.map(v => (
+        {[...BASE_VIEWS, ...(flags.auditLog ? ['Audit'] : [])].map(v => (
           <div key={v} className={`view-tab${view === v ? ' active' : ''}`} onClick={() => setView(v)}>{v}</div>
         ))}
       </div>
@@ -77,7 +79,7 @@ export default function App() {
         {view === 'Chat'     && <ChatPanel    domain={domain} port={port} onFieldsScanned={onFieldsScanned} onUsage={setLastUsage} />}
         {view === 'Profile'  && <ProfilePanel />}
         {view === 'Settings' && <SettingsPanel onSessionRestored={() => setSessionValid(true)} />}
-        {view === 'Audit'    && <AuditPanel />}
+        {view === 'Audit'    && flags.auditLog && <AuditPanel />}
       </div>
     </div>
   );

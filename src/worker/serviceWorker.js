@@ -183,7 +183,10 @@ async function handleClassify({ fields, domain }) {
 
 async function handleSaveField({ field, value, domain, templateId, source }) {
   await saveProfileField(templateId, field, value);
-  await recordConsent({ field, value, domain, templateId, source });
+  const settings = await getSettings();
+  if (settings.features?.auditLog !== false) {
+    await recordConsent({ field, value, domain, templateId, source });
+  }
   return { success: true };
 }
 
@@ -238,6 +241,7 @@ async function handleClearData() {
 
 async function handleExtractFromDocument({ templateId }) {
   const settings = await getSettings();
+  if (!settings.features?.documentExtraction) return { error: 'Document extraction is disabled.' };
   const apiKey   = await getDecryptedKey(settings);
   const profile  = await getProfile(templateId);
 

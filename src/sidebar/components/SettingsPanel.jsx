@@ -14,21 +14,36 @@ export default function SettingsPanel({ onSessionRestored }) {
     chrome.runtime.sendMessage({ type: MSG.GET_PROFILE, templateId: 'default' })
       .then(() => {})
       .catch(() => {});
-    // Load current settings from storage directly
-    chrome.storage.local.get('ai_ext:settings').then(r => {
-      if (r['ai_ext:settings']) {
-        const saved = r['ai_ext:settings'];
-        setSettings(prev => ({ ...prev, ...saved }));
-        // Pre-fill custom input if stored model isn't in the known list
-        if (saved.model && saved.provider) {
-          const known = (MODELS[saved.provider] ?? []).map(m => m.id);
-          if (!known.includes(saved.model)) setCustomModel(saved.model);
-        }
+    // Load current settings from storage, then merge remote feature flags
+    chrome.storage.local.get('ai_ext:settings').then(async r => {
+      const saved = r['ai_ext:settings'] ?? {};
+
+      const localOverrides = { ...(saved.features ?? {}) };
+      if ('costDisplayEnabled' in saved && !('costDisplay' in localOverrides)) {
+        localOverrides.costDisplay = saved.costDisplayEnabled;
+      }
+
+      const proxyUrl = saved.proxyUrl ?? DEFAULT_SETTINGS.proxyUrl;
+      let remoteFlags = {};
+      try {
+        const res = await fetch(`${proxyUrl}/v1/flags`);
+        if (res.ok) remoteFlags = await res.json();
+      } catch { /* proxy offline — fall through */ }
+
+      // Same merge order as useFeatureFlags: defaults → remote → local overrides
+      const mergedFeatures = { ...DEFAULT_SETTINGS.features, ...remoteFlags, ...localOverrides };
+
+      setSettings(prev => ({ ...prev, ...saved, features: mergedFeatures }));
+
+      if (saved.model && saved.provider) {
+        const known = (MODELS[saved.provider] ?? []).map(m => m.id);
+        if (!known.includes(saved.model)) setCustomModel(saved.model);
       }
     });
   }, []);
 
   const patch = (key, val) => setSettings(prev => ({ ...prev, [key]: val }));
+  const patchFeature = (key, val) => setSettings(prev => ({ ...prev, features: { ...prev.features, [key]: val } }));
 
   const handleSave = async () => {
     const payload = { ...settings };
@@ -146,10 +161,21 @@ export default function SettingsPanel({ onSessionRestored }) {
       )}
 
       <hr className="divider" />
+      <div className="card__title" style={{ marginBottom: 12 }}>Features</div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Show cost badge</label>
+        <input type="checkbox" checked={settings.features?.costDisplay ?? true} onChange={e => patchFeature('costDisplay', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Document extraction</label>
+        <input type="checkbox" checked={settings.features?.documentExtraction ?? true} onChange={e => patchFeature('documentExtraction', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
 
       <div className="row row--between" style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13 }}>Show cost badge</label>
-        <input type="checkbox" checked={settings.costDisplayEnabled} onChange={e => patch('costDisplayEnabled', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+        <label style={{ fontSize: 13 }}>Audit log</label>
+        <input type="checkbox" checked={settings.features?.auditLog ?? true} onChange={e => patchFeature('auditLog', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
       </div>
 
       <button className="btn" onClick={handleSave} style={{ width: '100%' }}>

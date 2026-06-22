@@ -21,8 +21,14 @@ const K = {
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 export async function getSettings() {
-  const r = await chrome.storage.local.get(K.settings);
-  return { ...DEFAULT_SETTINGS, ...(r[K.settings] ?? {}) };
+  const r      = await chrome.storage.local.get(K.settings);
+  const stored = r[K.settings] ?? {};
+  const mergedFeatures = { ...DEFAULT_SETTINGS.features, ...(stored.features ?? {}) };
+  // One-time migration: costDisplayEnabled → features.costDisplay
+  if ('costDisplayEnabled' in stored && !('costDisplay' in (stored.features ?? {}))) {
+    mergedFeatures.costDisplay = stored.costDisplayEnabled;
+  }
+  return { ...DEFAULT_SETTINGS, ...stored, features: mergedFeatures };
 }
 
 export async function saveSettings(patch) {

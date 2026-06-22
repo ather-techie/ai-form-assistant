@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MSG, DEFAULT_TEMPLATE_ID } from '../../shared/constants.js';
+import { useFeatureFlags } from '../hooks/useFeatureFlags.js';
 import { PERSONAL_FIELDS, EMPLOYEE_FIELDS, EDUCATION_FIELDS } from './sections/profileFieldConfigs.js';
 import PersonalInfoSection   from './sections/PersonalInfoSection.jsx';
 import EmployeeInfoSection   from './sections/EmployeeInfoSection.jsx';
@@ -8,6 +9,7 @@ import DocumentsSection      from './sections/DocumentsSection.jsx';
 import CustomFieldsSection   from './sections/CustomFieldsSection.jsx';
 
 export default function ProfilePanel() {
+  const flags = useFeatureFlags();
   const [templates, setTemplates] = useState([]);
   const [activeId,  setActiveId]  = useState(DEFAULT_TEMPLATE_ID);
   const [values,    setValues]    = useState({});
@@ -71,6 +73,7 @@ export default function ProfilePanel() {
   };
 
   const saveDocuments = async () => {
+    if (!flags.documentExtraction) return;
     setSaving(s => ({ ...s, documents: true }));
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_filename', value: resumeFile?.name ?? '', domain: '*', templateId: activeId, source: 'manual' });
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_content',  value: resumeFile?.content ?? '', domain: '*', templateId: activeId, source: 'manual' });
@@ -180,13 +183,15 @@ export default function ProfilePanel() {
         </div>
       )}
 
-      <DocumentsSection
-        isOpen={open.documents} onToggle={() => toggle('documents')}
-        resumeFile={resumeFile} onResumeChange={setResumeFile}
-        customFiles={customFiles} onCustomFilesChange={setCustomFiles}
-        saving={saving.documents} saved={saved.documents}
-        onSave={saveDocuments} onReset={() => { setResumeFile(null); setCustomFiles([]); }}
-      />
+      {flags.documentExtraction && (
+        <DocumentsSection
+          isOpen={open.documents} onToggle={() => toggle('documents')}
+          resumeFile={resumeFile} onResumeChange={setResumeFile}
+          customFiles={customFiles} onCustomFilesChange={setCustomFiles}
+          saving={saving.documents} saved={saved.documents}
+          onSave={saveDocuments} onReset={() => { setResumeFile(null); setCustomFiles([]); }}
+        />
+      )}
 
       <PersonalInfoSection
         isOpen={open.personal} onToggle={() => toggle('personal')}

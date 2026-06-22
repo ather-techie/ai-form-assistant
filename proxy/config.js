@@ -14,3 +14,10 @@ export const ENV_KEYS = {
   openai: process.env.OPENAI_API_KEY,
   gemini: process.env.GEMINI_API_KEY,
 };
+
+const parseBool = (val, def) => val === undefined ? def : val !== 'false';
+export const FEATURE_FLAGS = {
+  documentExtraction: parseBool(process.env.FEATURE_DOCUMENT_EXTRACTION, false),
+  auditLog:           parseBool(process.env.FEATURE_AUDIT_LOG,           false),
+  costDisplay:        parseBool(process.env.FEATURE_COST_DISPLAY,        false),
+};
