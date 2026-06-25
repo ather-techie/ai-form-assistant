@@ -158,19 +158,23 @@ npm install
 # 2. Generate placeholder icons (one-time, already committed)
 npm run gen-icons
 
-# 3. Build extension (watch mode for dev) → dist/
+# 3. Build extension (watch mode for dev) → ./dist/
 npm run dev
 
 # 4. Start proxy in MOCK mode (no API keys needed)
 npm run proxy:mock
+# If you get EADDRINUSE (port 3000 already in use), a previous proxy is still running.
+# Find and kill it:
+#   Windows:  Get-NetTCPConnection -LocalPort 3000 | Select OwningProcess | Stop-Process -Force
+#   macOS:    lsof -ti:3000 | xargs kill
 
 # 5. Load in Chrome
-# chrome://extensions → Developer mode → Load unpacked → select dist/
+# chrome://extensions → Developer mode → Load unpacked → select ./dist/
 ```
 
 ## First run checklist
 
-- [ ] Extension loaded from `dist/`
+- [ ] Extension loaded from `./dist/`
 - [ ] Proxy running on `localhost:3000` (`npm run proxy:mock` from root)
 - [ ] Open sidebar → Settings → Test connection → shows ✓
 - [ ] Navigate to any form page → Chat → Fill form → fields detected and filled
