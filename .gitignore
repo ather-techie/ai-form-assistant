@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-proxy/node_modules/
 
 # Build output
 dist/
@@ -9,7 +8,6 @@ dist/
 .env
 .env.local
 .env.*.local
-proxy/.env
 
 # Logs
 *.log
