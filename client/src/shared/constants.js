@@ -1,3 +1,5 @@
+import { PROVIDERS as CONTRACT_PROVIDERS, ENDPOINTS, SSE } from '@aifa/contract';
+
 // ─── Message types ────────────────────────────────────────────────────────────
 
 export const MSG = {
@@ -50,12 +52,7 @@ export const CONFIDENCE = {
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 
-export const PROVIDERS = {
-  CLAUDE: 'claude',
-  OPENAI: 'openai',
-  GEMINI: 'gemini',
-  LOCAL:  'local',
-};
+export const PROVIDERS = CONTRACT_PROVIDERS;
 
 // ─── Models per provider ──────────────────────────────────────────────────────
 
@@ -121,14 +118,14 @@ export const DEFAULT_SETTINGS = {
 
 // ─── Proxy ────────────────────────────────────────────────────────────────────
 
-export const PROXY_ENDPOINT   = '/v1/complete';
-export const EXTRACT_ENDPOINT = '/v1/extract';
+export const PROXY_ENDPOINT   = ENDPOINTS.COMPLETE;
+export const EXTRACT_ENDPOINT = ENDPOINTS.EXTRACT;
 
 // ─── SSE sentinels ────────────────────────────────────────────────────────────
 
-export const SSE_DONE  = '[DONE]';
-export const SSE_USAGE = '__usage__';
-export const SSE_ERROR = '__error__';
+export const SSE_DONE  = SSE.DONE;
+export const SSE_USAGE = SSE.USAGE;
+export const SSE_ERROR = SSE.ERROR;
 
 // ─── Keepalive ────────────────────────────────────────────────────────────────
 

@@ -1,9 +1,10 @@
 import { Router }      from 'express';
 import { FEATURE_FLAGS } from '../config.js';
+import { ENDPOINTS }    from '@aifa/contract';
 
 const router = Router();
 
-router.get('/v1/flags', (_req, res) => {
+router.get(ENDPOINTS.FLAGS, (_req, res) => {
   res.json(FEATURE_FLAGS);
 });
 

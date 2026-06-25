@@ -9,7 +9,7 @@ export default defineConfig({
     crx({ manifest }),
   ],
   build: {
-    outDir: 'dist',
+    outDir: '../dist',
     emptyOutDir: true,
   },
 });

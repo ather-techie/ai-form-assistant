@@ -3,6 +3,7 @@ import { MOCK, ENV_KEYS } from '../config.js';
 import { buildNonStreamingRequest, extractNonStreamingText } from '../lib/requestBuilder.js';
 import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 import mammoth  from 'mammoth';
+import { ENDPOINTS } from '@aifa/contract';
 
 async function decodeContent(content) {
   if (content.startsWith('data:application/pdf;base64,')) {
@@ -28,7 +29,7 @@ const EXTRACT_FIELDS = [
   'degree','fieldOfStudy','school','graduationYear','gpa',
 ];
 
-router.post('/v1/extract', async (req, res) => {
+router.post(ENDPOINTS.EXTRACT, async (req, res) => {
   const { provider, model, apiKey: bodyKey, content } = req.body;
 
   if (!provider || !content) {

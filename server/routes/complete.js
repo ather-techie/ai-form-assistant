@@ -4,10 +4,11 @@ import { buildUpstreamRequest } from '../lib/requestBuilder.js';
 import { pipeUpstream } from '../lib/streaming.js';
 import { serveMock } from '../lib/mock.js';
 import { sendSseError } from '../lib/utils.js';
+import { ENDPOINTS } from '@aifa/contract';
 
 const router = Router();
 
-router.post('/v1/complete', async (req, res) => {
+router.post(ENDPOINTS.COMPLETE, async (req, res) => {
   const { provider, model, messages, schema, stream = true, apiKey: bodyKey, localLlmHost, localLlmPort } = req.body;
   const apiKey = bodyKey || ENV_KEYS[provider] || null;
 

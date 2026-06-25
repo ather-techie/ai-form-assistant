@@ -7,6 +7,7 @@
     "mock":  "cross-env MOCK=true node index.js"
   },
   "dependencies": {
+    "@aifa/contract": "*",
     "cors":      "^2.8.5",
     "dotenv":    "^16.4.5",
     "express":   "^4.19.2",

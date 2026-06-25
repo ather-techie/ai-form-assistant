@@ -1,4 +1,5 @@
 import { safeJson } from './utils.js';
+import { SSE } from '@aifa/contract';
 
 export async function pipeUpstream(url, headers, body, provider, model, res) {
   let upstreamRes;
@@ -37,7 +38,7 @@ export async function pipeUpstream(url, headers, body, provider, model, res) {
       if (!t.startsWith('data:')) continue;
 
       const data = t.slice(5).trim();
-      if (data === '[DONE]') { res.write('data: [DONE]\n\n'); continue; }
+      if (data === SSE.DONE) { res.write(`data: ${SSE.DONE}\n\n`); continue; }
 
       const parsed = safeJson(data);
       if (!parsed) continue;
@@ -51,9 +52,9 @@ export async function pipeUpstream(url, headers, body, provider, model, res) {
   }
 
   if (usage) {
-    res.write(`data: __usage__:${JSON.stringify({ ...usage, model, provider })}\n\n`);
+    res.write(`data: ${SSE.USAGE}:${JSON.stringify({ ...usage, model, provider })}\n\n`);
   }
-  res.write('data: [DONE]\n\n');
+  res.write(`data: ${SSE.DONE}\n\n`);
   res.end();
 }
 

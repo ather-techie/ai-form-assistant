@@ -1,0 +1,9 @@
+{
+  "name": "@aifa/contract",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "contract.js",
+  "exports": {
+    ".": "./contract.js"
+  }
+}

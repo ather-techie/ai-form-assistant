@@ -1,19 +1,17 @@
 {
-  "name": "ai-form-assistant",
-  "version": "0.1.0",
+  "name": "ai-form-assistant-workspace",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
   "scripts": {
-    "dev": "vite build --watch",
-    "build": "vite build",
-    "gen-icons": "node scripts/gen-icons.mjs"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@crxjs/vite-plugin": "^2.0.0-beta.23",
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.6"
+    "dev": "npm -w ai-form-assistant run dev",
+    "build": "npm -w ai-form-assistant run build",
+    "gen-icons": "npm -w ai-form-assistant run gen-icons",
+    "proxy": "npm -w ai-form-assistant-proxy run start",
+    "proxy:mock": "npm -w ai-form-assistant-proxy run mock"
   }
 }
