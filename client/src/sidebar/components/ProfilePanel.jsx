@@ -8,6 +8,10 @@ import EducationInfoSection  from './sections/EducationInfoSection.jsx';
 import DocumentsSection      from './sections/DocumentsSection.jsx';
 import CustomFieldsSection   from './sections/CustomFieldsSection.jsx';
 
+const FIELD_LABELS = Object.fromEntries(
+  [...PERSONAL_FIELDS, ...EMPLOYEE_FIELDS, ...EDUCATION_FIELDS].map(f => [f.key, f.label])
+);
+
 export default function ProfilePanel() {
   const flags = useFeatureFlags();
   const [templates, setTemplates] = useState([]);
@@ -22,6 +26,8 @@ export default function ProfilePanel() {
   const [customFiles,       setCustomFiles]       = useState([]);
   const [customFieldsMeta,  setCustomFieldsMeta]  = useState([]);
   const [showResetConfirm,  setShowResetConfirm]  = useState(false);
+  const [pendingExtract,    setPendingExtract]    = useState(null); // { key: newValue } | null
+  const [extractSel,        setExtractSel]        = useState({});   // { key: bool } selection
 
   const load = async (id = activeId) => {
     const res = await chrome.runtime.sendMessage({ type: MSG.GET_PROFILE, templateId: id });
@@ -83,15 +89,28 @@ export default function ProfilePanel() {
     try {
       const result = await chrome.runtime.sendMessage({ type: MSG.EXTRACT_FROM_DOCUMENT, templateId: activeId });
       const extracted = Object.fromEntries(
-        Object.entries(result?.fields ?? {}).filter(([, v]) => v !== null && v !== '')
+        Object.entries(result?.fields ?? {}).filter(([k, v]) => v !== null && v !== '' && k in FIELD_LABELS)
       );
       if (Object.keys(extracted).length > 0) {
-        setValues(prev => ({ ...prev, ...extracted }));
-        setOpen(o => ({ ...o, personal: true, employment: true, education: true }));
+        // Stage extracted values for user review before overwriting anything.
+        setPendingExtract(extracted);
+        setExtractSel(Object.fromEntries(Object.keys(extracted).map(k => [k, true])));
       }
     } catch { /* extraction failure is non-fatal — documents are already saved */ }
 
     markSaved('documents');
+  };
+
+  const applyExtract = async () => {
+    const chosen = Object.entries(pendingExtract).filter(([k]) => extractSel[k]);
+    setValues(prev => ({ ...prev, ...Object.fromEntries(chosen) }));
+    for (const [field, value] of chosen) {
+      await chrome.runtime.sendMessage({
+        type: MSG.SAVE_FIELD, field, value, domain: '*', templateId: activeId, source: 'document',
+      });
+    }
+    setOpen(o => ({ ...o, personal: true, employment: true, education: true }));
+    setPendingExtract(null);
   };
 
   const saveCustomFields = async () => {
@@ -164,6 +183,67 @@ export default function ProfilePanel() {
               Yes, Reset Everything
             </button>
             <button className="btn btn--ghost" style={{ flex: 1 }} onClick={() => setShowResetConfirm(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {pendingExtract && (
+        <div className="card" style={{ marginBottom: 12, border: '1px solid var(--accent, #4a90d9)', padding: '12px 14px' }}>
+          <p style={{ fontSize: 13, marginBottom: 4, color: 'var(--text)', fontWeight: 600 }}>
+            Review extracted information
+          </p>
+          <p className="text-muted text-small" style={{ marginBottom: 10 }}>
+            Uncheck any field you want to keep as-is. Highlighted rows will overwrite existing data.
+          </p>
+          <div style={{ maxHeight: 260, overflowY: 'auto', marginBottom: 10 }}>
+            {Object.entries(pendingExtract).map(([key, newVal]) => {
+              const current     = values[key] ?? '';
+              const isOverwrite = current !== '' && current !== newVal;
+              return (
+                <label
+                  key={key}
+                  className="row"
+                  style={{
+                    gap: 8, alignItems: 'flex-start', padding: '6px 8px', marginBottom: 4, borderRadius: 6,
+                    cursor: 'pointer',
+                    background: isOverwrite ? 'var(--warn-bg, rgba(240,180,40,0.12))' : 'transparent',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!extractSel[key]}
+                    onChange={e => setExtractSel(s => ({ ...s, [key]: e.target.checked }))}
+                    style={{ marginTop: 2, flexShrink: 0 }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                      {FIELD_LABELS[key] ?? key}
+                      {isOverwrite && <span className="text-muted text-small" style={{ fontWeight: 400 }}> · overwrites</span>}
+                    </div>
+                    <div className="text-small" style={{ color: 'var(--text-muted)', wordBreak: 'break-word' }}>
+                      <span style={{ textDecoration: isOverwrite ? 'line-through' : 'none' }}>
+                        {current === '' ? 'empty' : current}
+                      </span>
+                      {' → '}
+                      <span style={{ color: 'var(--text)' }}>{newVal}</span>
+                    </div>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              className="btn"
+              style={{ flex: 1 }}
+              disabled={!Object.values(extractSel).some(Boolean)}
+              onClick={applyExtract}
+            >
+              Apply Selected
+            </button>
+            <button className="btn btn--ghost" style={{ flex: 1 }} onClick={() => setPendingExtract(null)}>
               Cancel
             </button>
           </div>

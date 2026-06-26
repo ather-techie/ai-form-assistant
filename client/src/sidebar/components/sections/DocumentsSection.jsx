@@ -72,7 +72,7 @@ export default function DocumentsSection({ isOpen, onToggle, resumeFile, onResum
             ) : (
               <p className="text-muted text-small" style={{ marginBottom: 8 }}>No resume uploaded. PDF, Word (.docx), .txt, and .md files are supported.</p>
             )}
-            <input type="file" ref={resumeInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.doc,.docx" onChange={handleResumeUpload} />
+            <input type="file" ref={resumeInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.docx" onChange={handleResumeUpload} />
             <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%' }} onClick={() => resumeInputRef.current?.click()}>
               {resumeFile ? 'Replace Resume' : 'Upload Resume'}
             </button>
@@ -94,7 +94,7 @@ export default function DocumentsSection({ isOpen, onToggle, resumeFile, onResum
                 </div>
               </div>
             ))}
-            <input type="file" ref={customInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.doc,.docx,.csv,.json" multiple onChange={handleCustomUpload} />
+            <input type="file" ref={customInputRef} style={{ display: 'none' }} accept=".txt,.md,.pdf,.docx,.csv,.json" multiple onChange={handleCustomUpload} />
             <button className="btn btn--ghost" style={{ fontSize: 12, width: '100%' }} onClick={() => customInputRef.current?.click()}>
               + Add File
             </button>
