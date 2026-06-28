@@ -79,7 +79,7 @@ export default function ProfilePanel() {
   };
 
   const saveDocuments = async () => {
-    if (!flags.documentExtraction) return;
+    if (!flags.documentsSection) return;
     setSaving(s => ({ ...s, documents: true }));
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_filename', value: resumeFile?.name ?? '', domain: '*', templateId: activeId, source: 'manual' });
     await chrome.runtime.sendMessage({ type: MSG.SAVE_FIELD, field: 'resume_content',  value: resumeFile?.content ?? '', domain: '*', templateId: activeId, source: 'manual' });
@@ -263,7 +263,7 @@ export default function ProfilePanel() {
         </div>
       )}
 
-      {flags.documentExtraction && (
+      {flags.documentsSection && (
         <DocumentsSection
           isOpen={open.documents} onToggle={() => toggle('documents')}
           resumeFile={resumeFile} onResumeChange={setResumeFile}
@@ -273,38 +273,46 @@ export default function ProfilePanel() {
         />
       )}
 
-      <PersonalInfoSection
-        isOpen={open.personal} onToggle={() => toggle('personal')}
-        values={values} onChange={setValue}
-        saving={saving.personal} saved={saved.personal}
-        onSave={() => saveSection('personal', PERSONAL_FIELDS)}
-        onReset={() => resetSection(PERSONAL_FIELDS)}
-      />
+      {flags.personalSection && (
+        <PersonalInfoSection
+          isOpen={open.personal} onToggle={() => toggle('personal')}
+          values={values} onChange={setValue}
+          saving={saving.personal} saved={saved.personal}
+          onSave={() => saveSection('personal', PERSONAL_FIELDS)}
+          onReset={() => resetSection(PERSONAL_FIELDS)}
+        />
+      )}
 
-      <EmployeeInfoSection
-        isOpen={open.employment} onToggle={() => toggle('employment')}
-        values={values} onChange={setValue}
-        saving={saving.employment} saved={saved.employment}
-        onSave={() => saveSection('employment', EMPLOYEE_FIELDS)}
-        onReset={() => resetSection(EMPLOYEE_FIELDS)}
-      />
+      {flags.employmentSection && (
+        <EmployeeInfoSection
+          isOpen={open.employment} onToggle={() => toggle('employment')}
+          values={values} onChange={setValue}
+          saving={saving.employment} saved={saved.employment}
+          onSave={() => saveSection('employment', EMPLOYEE_FIELDS)}
+          onReset={() => resetSection(EMPLOYEE_FIELDS)}
+        />
+      )}
 
-      <EducationInfoSection
-        isOpen={open.education} onToggle={() => toggle('education')}
-        values={values} onChange={setValue}
-        saving={saving.education} saved={saved.education}
-        onSave={() => saveSection('education', EDUCATION_FIELDS)}
-        onReset={() => resetSection(EDUCATION_FIELDS)}
-      />
+      {flags.educationSection && (
+        <EducationInfoSection
+          isOpen={open.education} onToggle={() => toggle('education')}
+          values={values} onChange={setValue}
+          saving={saving.education} saved={saved.education}
+          onSave={() => saveSection('education', EDUCATION_FIELDS)}
+          onReset={() => resetSection(EDUCATION_FIELDS)}
+        />
+      )}
 
-      <CustomFieldsSection
-        isOpen={open.custom} onToggle={() => toggle('custom')}
-        customFieldsMeta={customFieldsMeta} values={values} onChange={setValue}
-        onAddField={({ key, label }) => { setCustomFieldsMeta(m => [...m, { key, label }]); setValue(key, ''); }}
-        onDeleteField={handleDeleteCustomField}
-        saving={saving.custom} saved={saved.custom}
-        onSave={saveCustomFields} onReset={() => resetSection(customFieldsMeta)}
-      />
+      {flags.customFieldsSection && (
+        <CustomFieldsSection
+          isOpen={open.custom} onToggle={() => toggle('custom')}
+          customFieldsMeta={customFieldsMeta} values={values} onChange={setValue}
+          onAddField={({ key, label }) => { setCustomFieldsMeta(m => [...m, { key, label }]); setValue(key, ''); }}
+          onDeleteField={handleDeleteCustomField}
+          saving={saving.custom} saved={saved.custom}
+          onSave={saveCustomFields} onReset={() => resetSection(customFieldsMeta)}
+        />
+      )}
     </div>
   );
 }

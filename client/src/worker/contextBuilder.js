@@ -13,10 +13,11 @@ import { getProfile, getChatHistory } from '../shared/storage.js';
  * @param {string} opts.domain      - Current page domain
  * @param {string} opts.pageTitle   - Current page <title>
  * @param {string} opts.templateId  - Profile template to load
- * @param {string} [opts.userNote]  - Optional free-text hint from the user
+ * @param {string} [opts.userNote]           - Optional free-text hint from the user
+ * @param {string} [opts.attachmentContent]  - Raw document text to include when attachmentFilling is on
  * @returns {Promise<{ messages: Array, schema: object }>}
  */
-export async function buildContext({ fields, domain, pageTitle, templateId, userNote }) {
+export async function buildContext({ fields, domain, pageTitle, templateId, userNote, attachmentContent }) {
   const profile  = await getProfile(templateId);
   const history  = await getChatHistory(domain);
 
@@ -37,6 +38,9 @@ export async function buildContext({ fields, domain, pageTitle, templateId, user
       ? `Known user profile data: ${JSON.stringify(profile.fields)}`
       : '',
     userNote ? `User note: ${userNote}` : '',
+    attachmentContent
+      ? `--- User documents (for additional context) ---\n${attachmentContent}\n--- End of documents ---`
+      : '',
   ].filter(Boolean).join('\n');
 
   // Field list prompt

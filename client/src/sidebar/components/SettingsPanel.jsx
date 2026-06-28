@@ -19,8 +19,8 @@ export default function SettingsPanel({ onSessionRestored }) {
       const saved = r['ai_ext:settings'] ?? {};
 
       const localOverrides = { ...(saved.features ?? {}) };
-      if ('costDisplayEnabled' in saved && !('costDisplay' in localOverrides)) {
-        localOverrides.costDisplay = saved.costDisplayEnabled;
+      if ('costDisplayEnabled' in saved && !('costBadge' in localOverrides)) {
+        localOverrides.costBadge = saved.costDisplayEnabled;
       }
 
       const proxyUrl = saved.proxyUrl ?? DEFAULT_SETTINGS.proxyUrl;
@@ -165,17 +165,48 @@ export default function SettingsPanel({ onSessionRestored }) {
 
       <div className="row row--between" style={{ marginBottom: 10 }}>
         <label style={{ fontSize: 13 }}>Show cost badge</label>
-        <input type="checkbox" checked={settings.features?.costDisplay ?? true} onChange={e => patchFeature('costDisplay', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+        <input type="checkbox" checked={settings.features?.costBadge ?? true} onChange={e => patchFeature('costBadge', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
       </div>
 
       <div className="row row--between" style={{ marginBottom: 10 }}>
-        <label style={{ fontSize: 13 }}>Document extraction</label>
-        <input type="checkbox" checked={settings.features?.documentExtraction ?? true} onChange={e => patchFeature('documentExtraction', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+        <label style={{ fontSize: 13 }}>Documents section</label>
+        <input type="checkbox" checked={settings.features?.documentsSection ?? true} onChange={e => patchFeature('documentsSection', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Audit panel</label>
+        <input type="checkbox" checked={settings.features?.auditPanel ?? true} onChange={e => patchFeature('auditPanel', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+
+      <div className="row row--between" style={{ marginBottom: 4 }}>
+        <label style={{ fontSize: 13 }}>Attach docs when filling</label>
+        <input type="checkbox" checked={settings.features?.attachmentFilling ?? false} onChange={e => patchFeature('attachmentFilling', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+      <p className="text-muted text-small" style={{ marginBottom: 10 }}>
+        Sends your raw resume and uploaded files to the AI when filling forms. Increases token usage and cost.
+      </p>
+
+      <hr className="divider" />
+      <div className="card__title" style={{ marginBottom: 12 }}>Profile Sections</div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Personal info section</label>
+        <input type="checkbox" checked={settings.features?.personalSection ?? true} onChange={e => patchFeature('personalSection', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Employment info section</label>
+        <input type="checkbox" checked={settings.features?.employmentSection ?? true} onChange={e => patchFeature('employmentSection', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+      </div>
+
+      <div className="row row--between" style={{ marginBottom: 10 }}>
+        <label style={{ fontSize: 13 }}>Education section</label>
+        <input type="checkbox" checked={settings.features?.educationSection ?? true} onChange={e => patchFeature('educationSection', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
       </div>
 
       <div className="row row--between" style={{ marginBottom: 16 }}>
-        <label style={{ fontSize: 13 }}>Audit log</label>
-        <input type="checkbox" checked={settings.features?.auditLog ?? true} onChange={e => patchFeature('auditLog', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
+        <label style={{ fontSize: 13 }}>Custom fields section</label>
+        <input type="checkbox" checked={settings.features?.customFieldsSection ?? true} onChange={e => patchFeature('customFieldsSection', e.target.checked)} style={{ accentColor: 'var(--accent)', width: 16, height: 16 }} />
       </div>
 
       <button className="btn" onClick={handleSave} style={{ width: '100%' }}>

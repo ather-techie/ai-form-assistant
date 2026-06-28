@@ -82,7 +82,7 @@ async function handleMessage(msg) {
 
 // ─── FILL_FORM ────────────────────────────────────────────────────────────────
 
-async function handleFillForm({ domain, pageTitle, fields, templateId, userNote }) {
+async function handleFillForm({ domain, pageTitle, fields, templateId, userNote, skipPreview }) {
   const result = await enqueue({ type: MSG.FILL_FORM, domain, payload: { fields, templateId } });
   if (!result.queued) return { queued: false, reason: result.reason };
 
@@ -93,15 +93,16 @@ async function handleFillForm({ domain, pageTitle, fields, templateId, userNote 
     const { static: staticFields, smart, preview } = await routeFields(fields, templateId);
 
     // If there are preview (low-confidence) fields, return them to sidebar first
-    // Sidebar will show PromptPreview modal and re-trigger with confirmed fields
-    if (preview.length > 0) {
+    // Sidebar will show PromptPreview modal and re-trigger with confirmed fields + skipPreview=true
+    if (!skipPreview && preview.length > 0) {
       await complete(item.id);
       return { needsPreview: true, previewFields: preview, staticFields, smartFields: smart };
     }
 
-    // No preview needed — go straight to AI for smart fields
-    const aiValues = smart.length > 0
-      ? await callAI({ fields: smart, domain, pageTitle, templateId, userNote })
+    // User confirmed from preview dialog — treat preview fields as smart fields
+    const smartAll = skipPreview ? [...smart, ...preview] : smart;
+    const aiValues = smartAll.length > 0
+      ? await callAI({ fields: smartAll, domain, pageTitle, templateId, userNote })
       : {};
 
     await complete(item.id);
@@ -282,9 +283,27 @@ async function getDecryptedKey(settings) {
 }
 
 async function callAI({ fields, domain, pageTitle, templateId, userNote }) {
-  const settings             = await getSettings();
-  const apiKey               = await getDecryptedKey(settings);
-  const { messages, schema } = await buildContext({ fields, domain, pageTitle, templateId, userNote });
+  const settings = await getSettings();
+  const apiKey   = await getDecryptedKey(settings);
+
+  let attachmentContent;
+  if (settings.features?.attachmentFilling) {
+    const profile   = await getProfile(templateId);
+    const parts     = [];
+    const resumeRaw = profile.fields?.resume_content;
+    if (resumeRaw && !resumeRaw.startsWith('data:')) {
+      parts.push(`[${profile.fields?.resume_filename ?? 'Resume'}]\n${resumeRaw.trim()}`);
+    }
+    const customFiles = safeJsonParse(profile.fields?.custom_files ?? '[]');
+    for (const f of customFiles) {
+      if (f.content && !f.content.startsWith('data:')) {
+        parts.push(`[${f.name ?? 'Attachment'}]\n${f.content.trim()}`);
+      }
+    }
+    if (parts.length) attachmentContent = parts.join('\n\n---\n\n');
+  }
+
+  const { messages, schema } = await buildContext({ fields, domain, pageTitle, templateId, userNote, attachmentContent });
 
   const usage = await streamCompletion({
     proxyUrl: settings.proxyUrl,

@@ -7,9 +7,11 @@ export const PERSONAL_FIELDS = [
   { key: 'website',    label: 'Website',     placeholder: 'https://yoursite.com' },
   { key: 'address',    label: 'Address',     placeholder: '123 Main St' },
   { key: 'city',       label: 'City',        placeholder: 'New York' },
-  { key: 'state',      label: 'State',       placeholder: 'NY' },
-  { key: 'zip',        label: 'ZIP Code',    placeholder: '10001' },
-  { key: 'country',    label: 'Country',     placeholder: 'United States' },
+  { key: 'state',       label: 'State',        placeholder: 'Florida' },
+  { key: 'stateCode',   label: 'State Code',   placeholder: 'FL' },
+  { key: 'zip',         label: 'ZIP Code',     placeholder: '10001' },
+  { key: 'country',     label: 'Country',      placeholder: 'United States' },
+  { key: 'countryCode', label: 'Country Code', placeholder: 'USA' },
   { key: 'bio',        label: 'Bio / About', placeholder: 'A short bio about yourself…', multiline: true },
 ];
 
@@ -29,6 +31,12 @@ export const EDUCATION_FIELDS = [
   { key: 'school',         label: 'School / University', placeholder: 'State University' },
   { key: 'graduationYear', label: 'Graduation Year',     placeholder: '2020' },
   { key: 'gpa',            label: 'GPA',                 placeholder: '3.8' },
+];
+
+export const PROFILE_FIELD_SECTIONS = [
+  { label: 'Personal',     fields: PERSONAL_FIELDS },
+  { label: 'Professional', fields: EMPLOYEE_FIELDS },
+  { label: 'Education',    fields: EDUCATION_FIELDS },
 ];
 
 export const sectionHeaderStyle = {

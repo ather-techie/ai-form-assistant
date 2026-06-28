@@ -17,7 +17,12 @@ export const ENV_KEYS = {
 
 const parseBool = (val, def) => val === undefined ? def : val !== 'false';
 export const FEATURE_FLAGS = {
-  documentExtraction: parseBool(process.env.FEATURE_DOCUMENT_EXTRACTION, false),
-  auditLog:           parseBool(process.env.FEATURE_AUDIT_LOG,           false),
-  costDisplay:        parseBool(process.env.FEATURE_COST_DISPLAY,        false),
+  documentsSection:    parseBool(process.env.FEATURE_DOCUMENTS_SECTION,       false),
+  auditPanel:          parseBool(process.env.FEATURE_AUDIT_PANEL,             false),
+  costBadge:           parseBool(process.env.FEATURE_COST_BADGE,              false),
+  attachmentFilling:   parseBool(process.env.FEATURE_ATTACHMENT_FILLING,      false),
+  personalSection:     parseBool(process.env.FEATURE_PERSONAL_SECTION,        false),
+  employmentSection:   parseBool(process.env.FEATURE_EMPLOYMENT_SECTION,      false),
+  educationSection:    parseBool(process.env.FEATURE_EDUCATION_SECTION,       false),
+  customFieldsSection: parseBool(process.env.FEATURE_CUSTOM_FIELDS_SECTION,   false),
 };

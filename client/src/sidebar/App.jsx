@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ChatPanel    from './components/ChatPanel.jsx';
 import ProfilePanel from './components/ProfilePanel.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
@@ -17,6 +17,8 @@ export default function App() {
   const [lastUsage,    setLastUsage]    = useState(null);
   const [sessionValid, setSessionValid] = useState(true);
   const [port,         setPort]         = useState(null);
+  const [auditBadge,   setAuditBadge]   = useState(0);
+  const auditLastViewedRef = useRef(0);
 
   // Establish keepalive port on mount
   useEffect(() => {
@@ -53,6 +55,35 @@ export default function App() {
     check();
   }, []);
 
+  // Audit tab unread badge — counts consent log entries since last visit
+  useEffect(() => {
+    const computeBadge = async () => {
+      const r = await chrome.storage.local.get(['ai_ext:consent_log', 'ai_ext:audit_last_viewed']);
+      const lastViewed = r['ai_ext:audit_last_viewed'] ?? 0;
+      auditLastViewedRef.current = lastViewed;
+      const log = r['ai_ext:consent_log'] ?? [];
+      setAuditBadge(log.filter(e => e.timestamp > lastViewed).length);
+    };
+    computeBadge();
+
+    const onChange = (changes, area) => {
+      if (area !== 'local') return;
+      if ('ai_ext:consent_log' in changes || 'ai_ext:audit_last_viewed' in changes) computeBadge();
+    };
+    chrome.storage.onChanged.addListener(onChange);
+    return () => chrome.storage.onChanged.removeListener(onChange);
+  }, []);
+
+  const handleSetView = useCallback(v => {
+    setView(v);
+    if (v === 'Audit') {
+      const now = Date.now();
+      auditLastViewedRef.current = now;
+      chrome.storage.local.set({ 'ai_ext:audit_last_viewed': now });
+      setAuditBadge(0);
+    }
+  }, []);
+
   const onFieldsScanned = useCallback(count => setFieldCount(count), []);
 
   return (
@@ -61,7 +92,7 @@ export default function App() {
       <div className="context-strip">
         <span className="context-strip__domain" title={domain}>{domain || 'No page'}</span>
         {fieldCount > 0 && <span className="context-strip__badge">{fieldCount} fields</span>}
-        {lastUsage && flags.costDisplay && <CostBadge usage={lastUsage} />}
+        {lastUsage && flags.costBadge && <CostBadge usage={lastUsage} />}
         {!sessionValid && (
           <span className="badge-warn" title="Session expired — re-enter API key in Settings">⚠ Key</span>
         )}
@@ -69,8 +100,13 @@ export default function App() {
 
       {/* View tabs */}
       <div className="view-tabs">
-        {[...BASE_VIEWS, ...(flags.auditLog ? ['Audit'] : [])].map(v => (
-          <div key={v} className={`view-tab${view === v ? ' active' : ''}`} onClick={() => setView(v)}>{v}</div>
+        {[...BASE_VIEWS, ...(flags.auditPanel ? ['Audit'] : [])].map(v => (
+          <div key={v} className={`view-tab${view === v ? ' active' : ''}`} onClick={() => handleSetView(v)}>
+            {v}
+            {v === 'Audit' && auditBadge > 0 && (
+              <span className="audit-badge">{auditBadge > 99 ? '99+' : auditBadge}</span>
+            )}
+          </div>
         ))}
       </div>
 
@@ -79,7 +115,7 @@ export default function App() {
         {view === 'Chat'     && <ChatPanel    domain={domain} port={port} onFieldsScanned={onFieldsScanned} onUsage={setLastUsage} />}
         {view === 'Profile'  && <ProfilePanel />}
         {view === 'Settings' && <SettingsPanel onSessionRestored={() => setSessionValid(true)} />}
-        {view === 'Audit'    && flags.auditLog && <AuditPanel />}
+        {view === 'Audit'    && flags.auditPanel && <AuditPanel />}
       </div>
     </div>
   );

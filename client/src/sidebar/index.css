@@ -86,6 +86,11 @@ body {
 .modal__title  { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
 .modal__actions{ display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
 
+/* ── PromptPreview mapping dropdown ── */
+.mapping-select { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-size: 12px; padding: 3px 6px; width: 100%; margin-top: 4px; }
+.mapping-select:disabled { opacity: 0.4; cursor: not-allowed; }
+.mapping-select:focus:not(:disabled) { border-color: var(--accent); outline: none; }
+
 /* ── Misc ── */
 .badge-warn  { background: #2d2000; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 2px 6px; font-size: 11px; }
 .text-muted  { color: var(--text-muted); }
@@ -93,4 +98,7 @@ body {
 .divider     { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
 .row         { display: flex; align-items: center; gap: 8px; }
 .row--between{ justify-content: space-between; }
+
+/* ── Audit tab unread badge ── */
+.audit-badge { display: inline-flex; align-items: center; justify-content: center; margin-left: 4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--error); color: #fff; font-size: 10px; font-weight: 700; line-height: 1; vertical-align: middle; }
 .tag         { background: var(--border); border-radius: 4px; padding: 2px 6px; font-size: 11px; }

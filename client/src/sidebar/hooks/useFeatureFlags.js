@@ -12,8 +12,8 @@ export function useFeatureFlags() {
 
       // Local user overrides (saved via Settings panel)
       const localOverrides = { ...(stored.features ?? {}) };
-      if ('costDisplayEnabled' in stored && !('costDisplay' in localOverrides)) {
-        localOverrides.costDisplay = stored.costDisplayEnabled;
+      if ('costDisplayEnabled' in stored && !('costBadge' in localOverrides)) {
+        localOverrides.costBadge = stored.costDisplayEnabled;
       }
 
       // Fetch remote flags from proxy (source of truth for operator config)

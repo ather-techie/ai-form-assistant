@@ -108,11 +108,16 @@ export const DEFAULT_SETTINGS = {
   localLlmPort:       11434,
   apiKeyCiphertext:   null,
   apiKeyIv:           null,
-  costDisplayEnabled: true, // deprecated — migrated to features.costDisplay on first read
+  costDisplayEnabled: true, // deprecated — migrated to features.costBadge on first read
   features: {
-    documentExtraction: true,
-    auditLog:           true,
-    costDisplay:        true,
+    documentsSection:    true,
+    auditPanel:          true,
+    costBadge:           true,
+    attachmentFilling:   false,
+    personalSection:     true,
+    employmentSection:   true,
+    educationSection:    true,
+    customFieldsSection: true,
   },
 };
 
