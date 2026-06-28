@@ -1,6 +1,18 @@
+import { useState } from 'react';
 import { PERSONAL_FIELDS, sectionHeaderStyle } from './profileFieldConfigs.js';
+import SectionCustomFieldsAddon from './SectionCustomFieldsAddon.jsx';
 
-export default function PersonalInfoSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset }) {
+export default function PersonalInfoSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset, customMeta = [], onAddCustomField, onDeleteCustomField }) {
+  const [visibleFields, setVisibleFields] = useState(new Set());
+
+  function toggleVisibility(key) {
+    setVisibleFields(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
   return (
     <div className="card" style={{ padding: 0, marginBottom: 8 }}>
       <button style={sectionHeaderStyle} onClick={onToggle}>
@@ -18,10 +30,29 @@ export default function PersonalInfoSection({ isOpen, onToggle, values, onChange
                   </select>
                 : f.multiline
                   ? <textarea value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} rows={3} />
-                  : <input    value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} />
+                  : f.sensitive
+                    ? <div style={{ display: 'flex', gap: 4 }}>
+                        <input
+                          style={{ flex: 1 }}
+                          type={visibleFields.has(f.key) ? 'text' : 'password'}
+                          value={values[f.key] ?? ''}
+                          onChange={e => onChange(f.key, e.target.value)}
+                          placeholder={f.placeholder}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn--ghost"
+                          style={{ padding: '0 8px', fontSize: 11 }}
+                          onClick={() => toggleVisibility(f.key)}
+                        >
+                          {visibleFields.has(f.key) ? 'Hide' : 'Show'}
+                        </button>
+                      </div>
+                    : <input value={values[f.key] ?? ''} onChange={e => onChange(f.key, e.target.value)} placeholder={f.placeholder} />
               }
             </div>
           ))}
+          <SectionCustomFieldsAddon sectionId="personal" customMeta={customMeta} values={values} onChange={onChange} onAddField={onAddCustomField} onDeleteField={onDeleteCustomField} />
           <div className="row" style={{ marginTop: 4, gap: 6 }}>
             <button className="btn" style={{ flex: 1 }} onClick={onSave} disabled={saving}>
               {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

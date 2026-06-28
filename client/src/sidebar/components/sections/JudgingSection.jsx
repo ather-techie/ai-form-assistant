@@ -1,16 +1,16 @@
-import { EMPLOYEE_FIELDS, sectionHeaderStyle } from './profileFieldConfigs.js';
+import { JUDGING_FIELDS, sectionHeaderStyle } from './profileFieldConfigs.js';
 import SectionCustomFieldsAddon from './SectionCustomFieldsAddon.jsx';
 
-export default function EmployeeInfoSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset, customMeta = [], onAddCustomField, onDeleteCustomField }) {
+export default function JudgingSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset, customMeta = [], onAddCustomField, onDeleteCustomField }) {
   return (
     <div className="card" style={{ padding: 0, marginBottom: 8 }}>
       <button style={sectionHeaderStyle} onClick={onToggle}>
-        <span>Employee Info</span>
+        <span>Judging</span>
         <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{isOpen ? '▼' : '▶'}</span>
       </button>
       {isOpen && (
         <div style={{ padding: '0 12px 12px' }}>
-          {EMPLOYEE_FIELDS.map(f => (
+          {JUDGING_FIELDS.map(f => (
             <div className="field-group" key={f.key}>
               <label>{f.label}</label>
               {f.multiline
@@ -19,7 +19,7 @@ export default function EmployeeInfoSection({ isOpen, onToggle, values, onChange
               }
             </div>
           ))}
-          <SectionCustomFieldsAddon sectionId="employment" customMeta={customMeta} values={values} onChange={onChange} onAddField={onAddCustomField} onDeleteField={onDeleteCustomField} />
+          <SectionCustomFieldsAddon sectionId="judging" customMeta={customMeta} values={values} onChange={onChange} onAddField={onAddCustomField} onDeleteField={onDeleteCustomField} />
           <div className="row" style={{ marginTop: 4, gap: 6 }}>
             <button className="btn" style={{ flex: 1 }} onClick={onSave} disabled={saving}>
               {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

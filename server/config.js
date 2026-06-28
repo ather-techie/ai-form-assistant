@@ -25,4 +25,9 @@ export const FEATURE_FLAGS = {
   employmentSection:   parseBool(process.env.FEATURE_EMPLOYMENT_SECTION,      false),
   educationSection:    parseBool(process.env.FEATURE_EDUCATION_SECTION,       false),
   customFieldsSection: parseBool(process.env.FEATURE_CUSTOM_FIELDS_SECTION,   false),
+  judgingSection:      parseBool(process.env.FEATURE_JUDGING_SECTION,          false),
+  mentoringSection:    parseBool(process.env.FEATURE_MENTORING_SECTION,        false),
+  speakerSection:      parseBool(process.env.FEATURE_SPEAKER_SECTION,          false),
+  scholarshipSection:           parseBool(process.env.FEATURE_SCHOLARSHIP_SECTION,            false),
+  professionalAccountsSection:  parseBool(process.env.FEATURE_PROFESSIONAL_ACCOUNTS_SECTION,  false),
 };

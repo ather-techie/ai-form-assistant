@@ -1,6 +1,7 @@
 import { EDUCATION_FIELDS, sectionHeaderStyle } from './profileFieldConfigs.js';
+import SectionCustomFieldsAddon from './SectionCustomFieldsAddon.jsx';
 
-export default function EducationInfoSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset }) {
+export default function EducationInfoSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset, customMeta = [], onAddCustomField, onDeleteCustomField }) {
   return (
     <div className="card" style={{ padding: 0, marginBottom: 8 }}>
       <button style={sectionHeaderStyle} onClick={onToggle}>
@@ -18,6 +19,7 @@ export default function EducationInfoSection({ isOpen, onToggle, values, onChang
               }
             </div>
           ))}
+          <SectionCustomFieldsAddon sectionId="education" customMeta={customMeta} values={values} onChange={onChange} onAddField={onAddCustomField} onDeleteField={onDeleteCustomField} />
           <div className="row" style={{ marginTop: 4, gap: 6 }}>
             <button className="btn" style={{ flex: 1 }} onClick={onSave} disabled={saving}>
               {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}

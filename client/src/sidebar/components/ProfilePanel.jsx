@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
 import { MSG, DEFAULT_TEMPLATE_ID } from '../../shared/constants.js';
 import { useFeatureFlags } from '../hooks/useFeatureFlags.js';
-import { PERSONAL_FIELDS, EMPLOYEE_FIELDS, EDUCATION_FIELDS } from './sections/profileFieldConfigs.js';
+import { PERSONAL_FIELDS, EMPLOYEE_FIELDS, EDUCATION_FIELDS, JUDGING_FIELDS, MENTORING_FIELDS, SPEAKER_FIELDS, SCHOLARSHIP_FIELDS, PROFESSIONAL_ACCOUNTS_FIELDS } from './sections/profileFieldConfigs.js';
 import PersonalInfoSection   from './sections/PersonalInfoSection.jsx';
 import EmployeeInfoSection   from './sections/EmployeeInfoSection.jsx';
 import EducationInfoSection  from './sections/EducationInfoSection.jsx';
 import DocumentsSection      from './sections/DocumentsSection.jsx';
 import CustomFieldsSection   from './sections/CustomFieldsSection.jsx';
+import JudgingSection        from './sections/JudgingSection.jsx';
+import MentoringSection      from './sections/MentoringSection.jsx';
+import SpeakerSection        from './sections/SpeakerSection.jsx';
+import ScholarshipSection          from './sections/ScholarshipSection.jsx';
+import ProfessionalAccountsSection from './sections/ProfessionalAccountsSection.jsx';
 
 const FIELD_LABELS = Object.fromEntries(
-  [...PERSONAL_FIELDS, ...EMPLOYEE_FIELDS, ...EDUCATION_FIELDS].map(f => [f.key, f.label])
+  [...PERSONAL_FIELDS, ...EMPLOYEE_FIELDS, ...EDUCATION_FIELDS, ...JUDGING_FIELDS, ...MENTORING_FIELDS, ...SPEAKER_FIELDS, ...PROFESSIONAL_ACCOUNTS_FIELDS].map(f => [f.key, f.label])
 );
 
 export default function ProfilePanel() {
@@ -17,7 +22,7 @@ export default function ProfilePanel() {
   const [templates, setTemplates] = useState([]);
   const [activeId,  setActiveId]  = useState(DEFAULT_TEMPLATE_ID);
   const [values,    setValues]    = useState({});
-  const [open,      setOpen]      = useState({ personal: false, employment: false, education: false, documents: true, custom: false });
+  const [open,      setOpen]      = useState({ personal: false, employment: false, education: false, documents: true, custom: false, judging: false, mentoring: false, speaker: false, scholarship: false, professionalAccounts: false });
   const [saving,    setSaving]    = useState({});
   const [saved,     setSaved]     = useState({});
   const [showNew,   setShowNew]   = useState(false);
@@ -25,6 +30,7 @@ export default function ProfilePanel() {
   const [resumeFile,        setResumeFile]        = useState(null);
   const [customFiles,       setCustomFiles]       = useState([]);
   const [customFieldsMeta,  setCustomFieldsMeta]  = useState([]);
+  const [sectionCustomMeta, setSectionCustomMeta] = useState({ personal: [], employment: [], education: [], judging: [], mentoring: [], speaker: [], scholarship: [], professionalAccounts: [] });
   const [showResetConfirm,  setShowResetConfirm]  = useState(false);
   const [pendingExtract,    setPendingExtract]    = useState(null); // { key: newValue } | null
   const [extractSel,        setExtractSel]        = useState({});   // { key: bool } selection
@@ -37,6 +43,12 @@ export default function ProfilePanel() {
       setResumeFile(f.resume_filename ? { name: f.resume_filename, content: f.resume_content ?? '' } : null);
       try { setCustomFiles(f.custom_files ? JSON.parse(f.custom_files) : []); } catch { setCustomFiles([]); }
       try { setCustomFieldsMeta(f._custom_fields_meta ? JSON.parse(f._custom_fields_meta) : []); } catch { setCustomFieldsMeta([]); }
+      const SECTION_IDS = ['personal', 'employment', 'education', 'judging', 'mentoring', 'speaker', 'scholarship', 'professionalAccounts'];
+      const scm = {};
+      for (const sid of SECTION_IDS) {
+        try { scm[sid] = f[`_${sid}_custom_meta`] ? JSON.parse(f[`_${sid}_custom_meta`]) : []; } catch { scm[sid] = []; }
+      }
+      setSectionCustomMeta(scm);
     }
     if (res?.templates) setTemplates(res.templates);
   };
@@ -59,13 +71,27 @@ export default function ProfilePanel() {
         domain: '*', templateId: activeId, source: 'manual',
       });
     }
+    const meta = sectionCustomMeta[sectionId] ?? [];
+    await chrome.runtime.sendMessage({
+      type: MSG.SAVE_FIELD, field: `_${sectionId}_custom_meta`, value: JSON.stringify(meta),
+      domain: '*', templateId: activeId, source: 'manual',
+    });
+    for (const { key } of meta) {
+      await chrome.runtime.sendMessage({
+        type: MSG.SAVE_FIELD, field: key, value: values[key] ?? '',
+        domain: '*', templateId: activeId, source: 'manual',
+      });
+    }
     markSaved(sectionId);
   };
 
-  const resetSection = (fields) => {
+  const resetSection = (fields, sectionId) => {
     setValues(v => {
       const next = { ...v };
       fields.forEach(f => { next[f.key] = ''; });
+      if (sectionId) {
+        (sectionCustomMeta[sectionId] ?? []).forEach(f => { next[f.key] = ''; });
+      }
       return next;
     });
   };
@@ -75,6 +101,7 @@ export default function ProfilePanel() {
     setResumeFile(null);
     setCustomFiles([]);
     setCustomFieldsMeta([]);
+    setSectionCustomMeta({ personal: [], employment: [], education: [], judging: [], mentoring: [], speaker: [], scholarship: [], professionalAccounts: [] });
     setShowResetConfirm(false);
   };
 
@@ -130,6 +157,15 @@ export default function ProfilePanel() {
 
   const handleDeleteCustomField = async (key) => {
     setCustomFieldsMeta(m => m.filter(f => f.key !== key));
+    setValues(v => { const n = { ...v }; delete n[key]; return n; });
+    await chrome.runtime.sendMessage({
+      type: MSG.SAVE_FIELD, field: `__delete__${key}`, value: '',
+      domain: '*', templateId: activeId, source: 'manual',
+    });
+  };
+
+  const handleDeleteSectionCustomField = async (sectionId, key) => {
+    setSectionCustomMeta(m => ({ ...m, [sectionId]: m[sectionId].filter(f => f.key !== key) }));
     setValues(v => { const n = { ...v }; delete n[key]; return n; });
     await chrome.runtime.sendMessage({
       type: MSG.SAVE_FIELD, field: `__delete__${key}`, value: '',
@@ -279,7 +315,10 @@ export default function ProfilePanel() {
           values={values} onChange={setValue}
           saving={saving.personal} saved={saved.personal}
           onSave={() => saveSection('personal', PERSONAL_FIELDS)}
-          onReset={() => resetSection(PERSONAL_FIELDS)}
+          onReset={() => resetSection(PERSONAL_FIELDS, 'personal')}
+          customMeta={sectionCustomMeta.personal}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, personal: [...m.personal, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('personal', key)}
         />
       )}
 
@@ -289,7 +328,10 @@ export default function ProfilePanel() {
           values={values} onChange={setValue}
           saving={saving.employment} saved={saved.employment}
           onSave={() => saveSection('employment', EMPLOYEE_FIELDS)}
-          onReset={() => resetSection(EMPLOYEE_FIELDS)}
+          onReset={() => resetSection(EMPLOYEE_FIELDS, 'employment')}
+          customMeta={sectionCustomMeta.employment}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, employment: [...m.employment, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('employment', key)}
         />
       )}
 
@@ -299,7 +341,10 @@ export default function ProfilePanel() {
           values={values} onChange={setValue}
           saving={saving.education} saved={saved.education}
           onSave={() => saveSection('education', EDUCATION_FIELDS)}
-          onReset={() => resetSection(EDUCATION_FIELDS)}
+          onReset={() => resetSection(EDUCATION_FIELDS, 'education')}
+          customMeta={sectionCustomMeta.education}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, education: [...m.education, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('education', key)}
         />
       )}
 
@@ -311,6 +356,71 @@ export default function ProfilePanel() {
           onDeleteField={handleDeleteCustomField}
           saving={saving.custom} saved={saved.custom}
           onSave={saveCustomFields} onReset={() => resetSection(customFieldsMeta)}
+        />
+      )}
+
+      {flags.judgingSection && (
+        <JudgingSection
+          isOpen={open.judging} onToggle={() => toggle('judging')}
+          values={values} onChange={setValue}
+          saving={saving.judging} saved={saved.judging}
+          onSave={() => saveSection('judging', JUDGING_FIELDS)}
+          onReset={() => resetSection(JUDGING_FIELDS, 'judging')}
+          customMeta={sectionCustomMeta.judging}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, judging: [...m.judging, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('judging', key)}
+        />
+      )}
+
+      {flags.mentoringSection && (
+        <MentoringSection
+          isOpen={open.mentoring} onToggle={() => toggle('mentoring')}
+          values={values} onChange={setValue}
+          saving={saving.mentoring} saved={saved.mentoring}
+          onSave={() => saveSection('mentoring', MENTORING_FIELDS)}
+          onReset={() => resetSection(MENTORING_FIELDS, 'mentoring')}
+          customMeta={sectionCustomMeta.mentoring}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, mentoring: [...m.mentoring, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('mentoring', key)}
+        />
+      )}
+
+      {flags.speakerSection && (
+        <SpeakerSection
+          isOpen={open.speaker} onToggle={() => toggle('speaker')}
+          values={values} onChange={setValue}
+          saving={saving.speaker} saved={saved.speaker}
+          onSave={() => saveSection('speaker', SPEAKER_FIELDS)}
+          onReset={() => resetSection(SPEAKER_FIELDS, 'speaker')}
+          customMeta={sectionCustomMeta.speaker}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, speaker: [...m.speaker, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('speaker', key)}
+        />
+      )}
+
+      {flags.scholarshipSection && (
+        <ScholarshipSection
+          isOpen={open.scholarship} onToggle={() => toggle('scholarship')}
+          values={values} onChange={setValue}
+          saving={saving.scholarship} saved={saved.scholarship}
+          onSave={() => saveSection('scholarship', SCHOLARSHIP_FIELDS)}
+          onReset={() => resetSection(SCHOLARSHIP_FIELDS, 'scholarship')}
+          customMeta={sectionCustomMeta.scholarship}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, scholarship: [...m.scholarship, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('scholarship', key)}
+        />
+      )}
+
+      {flags.professionalAccountsSection && (
+        <ProfessionalAccountsSection
+          isOpen={open.professionalAccounts} onToggle={() => toggle('professionalAccounts')}
+          values={values} onChange={setValue}
+          saving={saving.professionalAccounts} saved={saved.professionalAccounts}
+          onSave={() => saveSection('professionalAccounts', PROFESSIONAL_ACCOUNTS_FIELDS)}
+          onReset={() => resetSection(PROFESSIONAL_ACCOUNTS_FIELDS, 'professionalAccounts')}
+          customMeta={sectionCustomMeta.professionalAccounts}
+          onAddCustomField={({ key, label }) => { setSectionCustomMeta(m => ({ ...m, professionalAccounts: [...m.professionalAccounts, { key, label }] })); setValue(key, ''); }}
+          onDeleteCustomField={(key) => handleDeleteSectionCustomField('professionalAccounts', key)}
         />
       )}
     </div>

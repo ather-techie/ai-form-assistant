@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import { sectionHeaderStyle } from './profileFieldConfigs.js';
-
-const labelToKey = (label) =>
-  label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+import { sectionHeaderStyle, labelToKey } from './profileFieldConfigs.js';
 
 export default function CustomFieldsSection({ isOpen, onToggle, customFieldsMeta, values, onChange, onAddField, onDeleteField, saving, saved, onSave, onReset }) {
   const [showAddField,  setShowAddField]  = useState(false);

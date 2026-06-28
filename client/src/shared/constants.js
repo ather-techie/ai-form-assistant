@@ -118,6 +118,11 @@ export const DEFAULT_SETTINGS = {
     employmentSection:   true,
     educationSection:    true,
     customFieldsSection: true,
+    judgingSection:      true,
+    mentoringSection:    true,
+    speakerSection:               true,
+    scholarshipSection:           true,
+    professionalAccountsSection:  true,
   },
 };
 
