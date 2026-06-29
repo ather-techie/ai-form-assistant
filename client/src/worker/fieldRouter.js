@@ -33,20 +33,36 @@ export async function routeFields(fields, templateId) {
   const previewFields = [];
 
   for (const field of fields) {
-    // Profile has an exact match → static fill regardless of confidence
-    const exactValue =
-      profile.fields[field.id] ??
-      profile.fields[field.classification];
+    // Check exact matches and record which key hit
+    let exactValue, exactKey;
+    if (profile.fields[field.id] !== undefined) {
+      exactValue = profile.fields[field.id];
+      exactKey   = field.id;
+    } else if (profile.fields[field.classification] !== undefined) {
+      exactValue = profile.fields[field.classification];
+      exactKey   = field.classification;
+    }
 
     // Normalised fallback: "job_title" ↔ "jobTitle", "firstName" ↔ "first_name", etc.
-    const normValue =
-      normalisedProfileMap[normaliseKey(field.id)] ??
-      normalisedProfileMap[normaliseKey(field.classification)];
+    let normValue, normKey;
+    if (exactValue === undefined) {
+      const nId    = normaliseKey(field.id);
+      const nClass = normaliseKey(field.classification);
+      if (normalisedProfileMap[nId] !== undefined) {
+        normValue = normalisedProfileMap[nId];
+        normKey   = field.id;
+      } else if (normalisedProfileMap[nClass] !== undefined) {
+        normValue = normalisedProfileMap[nClass];
+        normKey   = field.classification;
+      }
+    }
 
     if (exactValue !== undefined || normValue !== undefined) {
       staticFields.push({
         ...field,
-        value: exactValue ?? normValue,
+        value:       exactValue ?? normValue,
+        _matchType:  exactValue !== undefined ? 'exact' : 'normalized',
+        _profileKey: exactKey ?? normKey,
       });
       continue;
     }

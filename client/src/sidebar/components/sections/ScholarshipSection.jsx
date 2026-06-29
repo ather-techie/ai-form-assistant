@@ -3,10 +3,10 @@ import SectionCustomFieldsAddon from './SectionCustomFieldsAddon.jsx';
 
 export default function ScholarshipSection({ isOpen, onToggle, values, onChange, saving, saved, onSave, onReset, customMeta = [], onAddCustomField, onDeleteCustomField }) {
   return (
-    <div className="profile-section card">
+    <div className="card" style={{ padding: 0, marginBottom: 8 }}>
       <button style={sectionHeaderStyle} onClick={onToggle}>
         <span>Scholarship / Study Application</span>
-        <span>{isOpen ? '▲' : '▼'}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{isOpen ? '▼' : '▶'}</span>
       </button>
       {isOpen && (
         <div style={{ padding: '0 12px 12px' }}>

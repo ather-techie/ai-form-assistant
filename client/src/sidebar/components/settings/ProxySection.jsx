@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { MSG, PROVIDERS } from '../../../shared/constants.js';
+import { sectionHeaderStyle } from '../sections/profileFieldConfigs.js';
 
-export default function ProxySection({ settings, onSettingChange }) {
+export default function ProxySection({ settings, onSettingChange, isOpen, onToggle }) {
   const [status, setStatus] = useState('');
   const [testing, setTesting] = useState(false);
 
@@ -14,57 +15,63 @@ export default function ProxySection({ settings, onSettingChange }) {
   };
 
   return (
-    <>
-      <div className="card__title" style={{ marginBottom: 12 }}>Proxy</div>
-
-      <div className="field-group">
-        <label>Proxy URL</label>
-        <input
-          value={settings.proxyUrl}
-          onChange={e => onSettingChange('proxyUrl', e.target.value)}
-          placeholder="http://localhost:3000"
-        />
-      </div>
-
-      <div className="row" style={{ marginBottom: 12, gap: 8 }}>
-        <button className="btn btn--ghost" onClick={handleTest} disabled={testing} style={{ fontSize: 12 }}>
-          Test connection
-        </button>
-        {status && (
-          <span
-            className="text-small"
-            style={{ color: status.startsWith('✓') ? 'var(--success)' : 'var(--error)' }}
-          >
-            {status}
-          </span>
-        )}
-      </div>
-
-      {settings.provider === PROVIDERS.LOCAL && (
-        <>
-          <hr className="divider" />
-          <div className="card__title" style={{ marginBottom: 12 }}>Local LLM</div>
-          <div className="row" style={{ gap: 8 }}>
-            <div className="field-group" style={{ flex: 2 }}>
-              <label>Host</label>
-              <input
-                value={settings.localLlmHost}
-                onChange={e => onSettingChange('localLlmHost', e.target.value)}
-                placeholder="localhost"
-              />
-            </div>
-            <div className="field-group" style={{ flex: 1 }}>
-              <label>Port</label>
-              <input
-                type="number"
-                value={settings.localLlmPort}
-                onChange={e => onSettingChange('localLlmPort', Number(e.target.value))}
-                placeholder="11434"
-              />
-            </div>
+    <div className="card" style={{ padding: 0, marginBottom: 8 }}>
+      <button style={sectionHeaderStyle} onClick={onToggle}>
+        <span>Proxy</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && (
+        <div style={{ padding: '0 12px 12px' }}>
+          <div className="field-group">
+            <label>Proxy URL</label>
+            <input
+              value={settings.proxyUrl}
+              onChange={e => onSettingChange('proxyUrl', e.target.value)}
+              placeholder="http://localhost:3000"
+            />
           </div>
-        </>
+
+          <div className="row" style={{ marginBottom: 4, gap: 8 }}>
+            <button className="btn btn--ghost" onClick={handleTest} disabled={testing} style={{ fontSize: 12 }}>
+              Test connection
+            </button>
+            {status && (
+              <span
+                className="text-small"
+                style={{ color: status.startsWith('✓') ? 'var(--success)' : 'var(--error)' }}
+              >
+                {status}
+              </span>
+            )}
+          </div>
+
+          {settings.provider === PROVIDERS.LOCAL && (
+            <>
+              <hr className="divider" />
+              <div className="card__title" style={{ marginBottom: 12 }}>Local LLM</div>
+              <div className="row" style={{ gap: 8 }}>
+                <div className="field-group" style={{ flex: 2 }}>
+                  <label>Host</label>
+                  <input
+                    value={settings.localLlmHost}
+                    onChange={e => onSettingChange('localLlmHost', e.target.value)}
+                    placeholder="localhost"
+                  />
+                </div>
+                <div className="field-group" style={{ flex: 1 }}>
+                  <label>Port</label>
+                  <input
+                    type="number"
+                    value={settings.localLlmPort}
+                    onChange={e => onSettingChange('localLlmPort', Number(e.target.value))}
+                    placeholder="11434"
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       )}
-    </>
+    </div>
   );
 }

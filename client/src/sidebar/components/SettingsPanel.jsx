@@ -9,6 +9,8 @@ export default function SettingsPanel({ onSessionRestored }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [apiKey, setApiKey] = useState('');
   const [saved, setSaved] = useState(false);
+  const [open, setOpen] = useState({ aiProvider: true, proxy: false, features: false, profileSections: false });
+  const toggle = key => setOpen(o => ({ ...o, [key]: !o[key] }));
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: MSG.GET_PROFILE, templateId: 'default' })
@@ -35,7 +37,11 @@ export default function SettingsPanel({ onSessionRestored }) {
   }, []);
 
   const patch = (key, val) => setSettings(prev => ({ ...prev, [key]: val }));
-  const patchFeature = (key, val) => setSettings(prev => ({ ...prev, features: { ...prev.features, [key]: val } }));
+  const patchFeature = (key, val) => setSettings(prev => {
+    const updated = { ...prev.features, [key]: val };
+    chrome.runtime.sendMessage({ type: MSG.UPDATE_SETTINGS, settings: { features: updated } });
+    return { ...prev, features: updated };
+  });
 
   const handleSave = async () => {
     const payload = { ...settings };
@@ -54,18 +60,29 @@ export default function SettingsPanel({ onSessionRestored }) {
         onSettingChange={patch}
         apiKey={apiKey}
         onApiKeyChange={setApiKey}
+        isOpen={open.aiProvider}
+        onToggle={() => toggle('aiProvider')}
+      />
+      <ProxySection
+        settings={settings}
+        onSettingChange={patch}
+        isOpen={open.proxy}
+        onToggle={() => toggle('proxy')}
+      />
+      <FeaturesSection
+        features={settings.features}
+        onFeatureChange={patchFeature}
+        isOpen={open.features}
+        onToggle={() => toggle('features')}
+      />
+      <ProfileSectionsSection
+        features={settings.features}
+        onFeatureChange={patchFeature}
+        isOpen={open.profileSections}
+        onToggle={() => toggle('profileSections')}
       />
 
-      <hr className="divider" />
-      <ProxySection settings={settings} onSettingChange={patch} />
-
-      <hr className="divider" />
-      <FeaturesSection features={settings.features} onFeatureChange={patchFeature} />
-
-      <hr className="divider" />
-      <ProfileSectionsSection features={settings.features} onFeatureChange={patchFeature} />
-
-      <button className="btn" onClick={handleSave} style={{ width: '100%' }}>
+      <button className="btn" onClick={handleSave} style={{ width: '100%', marginTop: 4 }}>
         {saved ? '✓ Saved' : 'Save settings'}
       </button>
     </div>

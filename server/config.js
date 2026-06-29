@@ -30,4 +30,5 @@ export const FEATURE_FLAGS = {
   speakerSection:      parseBool(process.env.FEATURE_SPEAKER_SECTION,          false),
   scholarshipSection:           parseBool(process.env.FEATURE_SCHOLARSHIP_SECTION,            false),
   professionalAccountsSection:  parseBool(process.env.FEATURE_PROFESSIONAL_ACCOUNTS_SECTION,  false),
+  traceFormFill:                parseBool(process.env.FEATURE_TRACE_FORM_FILL,                false),
 };

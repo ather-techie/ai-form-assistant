@@ -8,6 +8,8 @@ import { getSettings, saveSettings, getProfile, saveProfileField,
          getTemplates, getTokenLog, clearAllData,
          appendTokenLog, setFieldMap, getFieldMap,
          flushChatToLocal, appendChatSession }          from '../shared/storage.js';
+import { createTraceSession, addTraceEvent,
+         getTraceSessions, clearTraceSessions }         from '../shared/traceLogger.js';
 import { getOrCreateSessionKey, loadSessionKey,
          encrypt, decrypt }                             from '../shared/crypto.js';
 import { enqueue, claimNext, complete, pendingCount }   from '../shared/requestQueue.js';
@@ -76,6 +78,8 @@ async function handleMessage(msg) {
     case MSG.GET_TOKEN_USAGE:        return { log: await getTokenLog() };
     case MSG.CLEAR_DATA:             return handleClearData();
     case MSG.EXTRACT_FROM_DOCUMENT:  return handleExtractFromDocument(msg);
+    case MSG.GET_TRACE_LOG:          return { sessions: await getTraceSessions() };
+    case MSG.TRACE_EVENT:            return handleTraceEvent(msg);
     default:                         return { error: `Unknown message type: ${msg.type}` };
   }
 }
@@ -83,6 +87,15 @@ async function handleMessage(msg) {
 // ─── FILL_FORM ────────────────────────────────────────────────────────────────
 
 async function handleFillForm({ domain, pageTitle, fields, templateId, userNote, skipPreview }) {
+  const settings     = await getSettings();
+  const traceEnabled = settings.features?.traceFormFill ?? false;
+  const sessionId    = createTraceSession();
+
+  await addTraceEvent(sessionId, 'fill_start', { domain, pageTitle, fieldCount: fields.length }, traceEnabled);
+  await addTraceEvent(sessionId, 'fields_scanned', {
+    fields: fields.map(f => ({ id: f.id, label: f.label, type: f.type, classification: f.classification, confidence: f.confidence })),
+  }, traceEnabled);
+
   const result = await enqueue({ type: MSG.FILL_FORM, domain, payload: { fields, templateId } });
   if (!result.queued) return { queued: false, reason: result.reason };
 
@@ -92,15 +105,31 @@ async function handleFillForm({ domain, pageTitle, fields, templateId, userNote,
   try {
     const { static: staticFields, smart, preview } = await routeFields(fields, templateId);
 
+    await addTraceEvent(sessionId, 'routing_complete', {
+      matchDetails: [
+        ...staticFields.map(f => ({ fieldId: f.id, bucket: 'static', matchType: f._matchType, profileKey: f._profileKey, confidence: f.confidence })),
+        ...smart.map(f => ({ fieldId: f.id, bucket: 'smart', reason: 'no-profile-key', classification: f.classification, confidence: f.confidence })),
+        ...preview.map(f => ({ fieldId: f.id, bucket: 'preview', reason: 'low-confidence', classification: f.classification, confidence: f.confidence })),
+      ],
+    }, traceEnabled);
+
     // If there are preview (low-confidence) fields, return them to sidebar first
     // Sidebar will show PromptPreview modal and re-trigger with confirmed fields + skipPreview=true
     if (!skipPreview && preview.length > 0) {
       await complete(item.id);
-      return { needsPreview: true, previewFields: preview, staticFields, smartFields: smart };
+      return { needsPreview: true, previewFields: preview, staticFields, smartFields: smart, sessionId, traceEnabled };
     }
 
     // User confirmed from preview dialog — treat preview fields as smart fields
     const smartAll = skipPreview ? [...smart, ...preview] : smart;
+
+    if (smartAll.length > 0) {
+      await addTraceEvent(sessionId, 'ai_call', {
+        fieldCount: smartAll.length,
+        fieldIds:   smartAll.map(f => f.id),
+      }, traceEnabled);
+    }
+
     const aiValues = smartAll.length > 0
       ? await callAI({ fields: smartAll, domain, pageTitle, templateId, userNote })
       : {};
@@ -111,8 +140,11 @@ async function handleFillForm({ domain, pageTitle, fields, templateId, userNote,
       staticFields,
       aiValues,
       pendingCount: await pendingCount(),
+      sessionId,
+      traceEnabled,
     };
   } catch (err) {
+    await addTraceEvent(sessionId, 'fill_error', { code: err.code ?? 'UNKNOWN', message: err.message ?? String(err) }, traceEnabled);
     await complete(item.id);
     throw err;
   }
@@ -236,6 +268,14 @@ async function handleClearData() {
   await clearAllData();
   _sessionKey = null;
   return { success: true };
+}
+
+// ─── TRACE_EVENT ──────────────────────────────────────────────────────────────
+
+async function handleTraceEvent({ sessionId, eventType, data }) {
+  if (!sessionId || !eventType) return { ok: false };
+  await addTraceEvent(sessionId, eventType, data, true);
+  return { ok: true };
 }
 
 // ─── EXTRACT_FROM_DOCUMENT ────────────────────────────────────────────────────

@@ -101,8 +101,14 @@ export default function ChatPanel({ domain, port, onFieldsScanned, onUsage }) {
       // Inject static fills immediately
       if (res?.staticFields?.length) {
         const fills = res.staticFields.map(f => ({ id: f.id, value: f.value }));
-        await chrome.tabs.sendMessage(tab.id, { type: 'INJECT_FIELDS', fills });
+        const injectResult = await chrome.tabs.sendMessage(tab.id, { type: 'INJECT_FIELDS', fills });
         addMsg('system', `Filled ${fills.length} fields from your profile.`);
+        if (res.traceEnabled && res.sessionId) {
+          chrome.runtime.sendMessage({
+            type: MSG.TRACE_EVENT, sessionId: res.sessionId, eventType: 'injection_result',
+            data: { filled: injectResult?.filled ?? 0, failed: injectResult?.failed ?? 0, fieldCount: fills.length, bucket: 'static' },
+          });
+        }
       }
 
       // AI values stream in via tokens; when done we inject
@@ -110,6 +116,7 @@ export default function ChatPanel({ domain, port, onFieldsScanned, onUsage }) {
         const fills = Object.entries(res.aiValues).map(([id, value]) => ({ id, value }));
         await chrome.tabs.sendMessage(tab.id, { type: 'INJECT_FIELDS', fills });
       }
+      setBusy(false);
     } catch (err) {
       addMsg('error', err.message ?? 'Something went wrong.');
       setBusy(false);

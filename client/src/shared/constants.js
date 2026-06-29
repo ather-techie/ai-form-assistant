@@ -15,6 +15,8 @@ export const MSG = {
   GET_TOKEN_USAGE:        'GET_TOKEN_USAGE',
   CLEAR_DATA:             'CLEAR_DATA',
   EXTRACT_FROM_DOCUMENT:  'EXTRACT_FROM_DOCUMENT',
+  GET_TRACE_LOG:          'GET_TRACE_LOG',
+  TRACE_EVENT:            'TRACE_EVENT',
 };
 
 // ─── Error codes ──────────────────────────────────────────────────────────────
@@ -42,6 +44,7 @@ export const STORAGE_KEYS = {
   SESSION_KEY:   'ai_ext:session_key',
   REQUEST_QUEUE: 'ai_ext:request_queue',
   CONSENT_LOG:   'ai_ext:consent_log',
+  TRACE_LOG:     'ai_ext:trace_log',
 };
 
 // ─── Confidence thresholds ────────────────────────────────────────────────────
@@ -114,6 +117,7 @@ export const DEFAULT_SETTINGS = {
     auditPanel:          true,
     costBadge:           true,
     attachmentFilling:   false,
+    traceFormFill:       false,
     personalSection:     true,
     employmentSection:   true,
     educationSection:    true,
